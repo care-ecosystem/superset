@@ -1,0 +1,18 @@
+# CARE-specific requirements
+# Additional database drivers and dependencies for CARE HMIS
+
+# PostgreSQL (already included in base, but specify version)
+psycopg2-binary==2.9.9
+
+# MySQL/MariaDB support
+mysqlclient==2.2.0
+
+# BigQuery support
+sqlalchemy-bigquery==1.8.0
+google-cloud-bigquery==3.11.4
+
+# Additional utilities
+python-dotenv==1.0.0
+
+# Email support (if using SMTP)
+# flask-mail==0.9.1
