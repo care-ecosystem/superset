@@ -591,7 +591,524 @@ A valid JWT in the response confirms the guest token flow is working.
 
 ---
 
-## 8. Troubleshooting
+## 8. Health Checks & Monitoring
+
+Production Superset deployments require robust observability. This section covers health checks, metrics collection, alerting, and log aggregation.
+
+### 8.1 Kubernetes Health Probes
+
+Health probes ensure Kubernetes restarts failing pods and routes traffic only to healthy instances.
+
+#### Liveness Probe
+
+Checks if the application is alive. Kubernetes restarts the pod if this fails.
+
+```yaml
+# superset-web deployment
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8088
+  initialDelaySeconds: 30
+  periodSeconds: 30
+  timeoutSeconds: 5
+  failureThreshold: 3
+```
+
+**What it checks:**
+- `/health` endpoint responds with HTTP 200
+- Database connection is alive
+- Redis cache is reachable
+
+**When it restarts:**
+- After 3 consecutive failures (90 seconds total)
+
+#### Readiness Probe
+
+Checks if the application is ready to serve traffic. Removes pod from service if failing.
+
+```yaml
+readinessProbe:
+  httpGet:
+    path: /health
+    port: 8088
+  initialDelaySeconds: 15
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+```
+
+**Purpose:**
+- Prevents traffic routing to pods still starting up
+- Removes pods from load balancer during rolling updates
+- Faster recovery than liveness probe (10s vs 30s period)
+
+#### Startup Probe
+
+Gives slow-starting containers more time before liveness probe takes over.
+
+```yaml
+startupProbe:
+  httpGet:
+    path: /health
+    port: 8088
+  initialDelaySeconds: 15
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 60  # 5 minutes total (60 * 5s)
+```
+
+**Use case:**
+- First-time pod startup with database migrations
+- Cold start with cache warming
+- After failure threshold, liveness probe takes over
+
+#### Celery Worker Health
+
+Workers don't expose HTTP endpoints. Use exec probe with Celery inspect:
+
+```yaml
+# superset-worker deployment
+livenessProbe:
+  exec:
+    command:
+      - sh
+      - -c
+      - celery -A superset.tasks.celery_app:app inspect ping -d celery@$HOSTNAME
+  initialDelaySeconds: 120
+  periodSeconds: 60
+  timeoutSeconds: 60
+  failureThreshold: 3
+```
+
+### 8.2 Prometheus Metrics
+
+Superset exposes metrics for monitoring via Prometheus.
+
+#### Enable Metrics Endpoint
+
+Add to `superset_config.py`:
+
+```python
+# Enable StatsD metrics
+STATS_LOGGER = StatsLogger
+STATSD_HOST = os.getenv("STATSD_HOST", "localhost")
+STATSD_PORT = int(os.getenv("STATSD_PORT", "8125"))
+STATSD_PREFIX = "superset"
+
+# OR use Prometheus directly (preferred)
+from superset.stats_logger import PrometheusStatsLogger
+STATS_LOGGER = PrometheusStatsLogger
+```
+
+#### Prometheus ServiceMonitor
+
+```yaml
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: superset
+  namespace: care
+  labels:
+    app: superset
+    prometheus: kube-prometheus
+spec:
+  selector:
+    matchLabels:
+      app: superset
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s
+```
+
+#### Key Metrics to Monitor
+
+| Metric | Description | Alert Threshold |
+|--------|-------------|-----------------|
+| `superset_query_duration_seconds` | Query execution time | > 30s (p95) |
+| `superset_query_errors_total` | Failed queries | > 10/min |
+| `superset_http_request_duration_seconds` | HTTP response time | > 5s (p95) |
+| `superset_active_users` | Concurrent users | > 100 |
+| `superset_dashboard_load_duration_seconds` | Dashboard render time | > 10s (p95) |
+| `celery_task_success_total` | Completed async tasks | Trend down |
+| `celery_task_failure_total` | Failed async tasks | > 5/min |
+| `celery_worker_up` | Worker availability | < 1 |
+
+### 8.3 Grafana Dashboards
+
+Import the official Superset Grafana dashboard or create custom ones.
+
+#### Dashboard Template (JSON)
+
+```json
+{
+  "dashboard": {
+    "title": "Superset Observability",
+    "panels": [
+      {
+        "title": "Query Performance (p95)",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(superset_query_duration_seconds_bucket[5m]))"
+          }
+        ]
+      },
+      {
+        "title": "Error Rate",
+        "targets": [
+          {
+            "expr": "rate(superset_query_errors_total[5m])"
+          }
+        ]
+      },
+      {
+        "title": "Active Users",
+        "targets": [
+          {
+            "expr": "superset_active_users"
+          }
+        ]
+      },
+      {
+        "title": "Celery Queue Depth",
+        "targets": [
+          {
+            "expr": "celery_queue_length{queue=\"superset\"}"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+#### Import Dashboard
+
+```bash
+# Using Grafana API
+curl -X POST http://grafana.care.svc.cluster.local/api/dashboards/db \
+  -H "Authorization: Bearer <grafana-api-key>" \
+  -H "Content-Type: application/json" \
+  -d @superset-dashboard.json
+```
+
+### 8.4 Alerting Rules
+
+#### Prometheus AlertManager Rules
+
+```yaml
+# superset-alerts.yaml
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: superset-alerts
+  namespace: care
+spec:
+  groups:
+    - name: superset
+      interval: 30s
+      rules:
+        # High error rate
+        - alert: SupersetHighErrorRate
+          expr: rate(superset_query_errors_total[5m]) > 10
+          for: 5m
+          labels:
+            severity: warning
+            component: superset
+          annotations:
+            summary: "Superset query error rate is high"
+            description: "{{ $value }} queries/sec are failing (threshold: 10/sec)"
+
+        # Slow query performance
+        - alert: SupersetSlowQueries
+          expr: histogram_quantile(0.95, rate(superset_query_duration_seconds_bucket[5m])) > 30
+          for: 10m
+          labels:
+            severity: warning
+            component: superset
+          annotations:
+            summary: "Superset queries are slow (p95 > 30s)"
+            description: "95th percentile query time: {{ $value }}s"
+
+        # Celery workers down
+        - alert: SupersetWorkersDown
+          expr: celery_worker_up == 0
+          for: 2m
+          labels:
+            severity: critical
+            component: superset-worker
+          annotations:
+            summary: "Superset Celery worker is down"
+            description: "Worker {{ $labels.worker }} has been down for 2+ minutes"
+
+        # High memory usage
+        - alert: SupersetHighMemory
+          expr: container_memory_working_set_bytes{pod=~"superset-.*"} / container_spec_memory_limit_bytes > 0.85
+          for: 10m
+          labels:
+            severity: warning
+            component: superset
+          annotations:
+            summary: "Superset pod memory usage is high"
+            description: "Pod {{ $labels.pod }} is using {{ $value | humanizePercentage }} of memory"
+
+        # Pod restart loop
+        - alert: SupersetPodRestartLoop
+          expr: rate(kube_pod_container_status_restarts_total{pod=~"superset-.*"}[15m]) > 0
+          for: 15m
+          labels:
+            severity: critical
+            component: superset
+          annotations:
+            summary: "Superset pod is crash-looping"
+            description: "Pod {{ $labels.pod }} has restarted {{ $value }} times in 15 minutes"
+```
+
+Apply the rules:
+
+```bash
+kubectl apply -f superset-alerts.yaml
+```
+
+#### Alert Notification Channels
+
+Configure AlertManager to send alerts to Slack, PagerDuty, or email:
+
+```yaml
+# alertmanager-config.yaml
+global:
+  slack_api_url: 'https://hooks.slack.com/services/YOUR/WEBHOOK/URL'
+
+route:
+  receiver: 'slack-care-alerts'
+  group_by: ['alertname', 'component']
+  group_wait: 10s
+  group_interval: 5m
+  repeat_interval: 12h
+
+receivers:
+  - name: 'slack-care-alerts'
+    slack_configs:
+      - channel: '#care-alerts'
+        title: '{{ .GroupLabels.alertname }}'
+        text: '{{ range .Alerts }}{{ .Annotations.summary }}\n{{ .Annotations.description }}\n{{ end }}'
+```
+
+### 8.5 Log Aggregation
+
+Centralize logs for troubleshooting and audit trails.
+
+#### Loki Configuration
+
+```yaml
+# promtail-config.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: promtail-config
+  namespace: care
+data:
+  promtail.yaml: |
+    server:
+      http_listen_port: 9080
+      grpc_listen_port: 0
+
+    positions:
+      filename: /tmp/positions.yaml
+
+    clients:
+      - url: http://loki.care.svc.cluster.local:3100/loki/api/v1/push
+
+    scrape_configs:
+      - job_name: superset
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names: [care]
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            target_label: app
+          - source_labels: [__meta_kubernetes_pod_label_component]
+            target_label: component
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: pod
+        pipeline_stages:
+          - regex:
+              expression: '^(?P<timestamp>\S+) (?P<level>\S+) (?P<message>.*)'
+          - labels:
+              level:
+```
+
+#### Viewing Logs in Grafana
+
+```promql
+# All Superset logs
+{app="superset"}
+
+# Errors only
+{app="superset"} |= "ERROR"
+
+# Slow queries
+{app="superset", component="web"} |= "slow query" | json
+
+# Worker task failures
+{app="superset", component="worker"} |= "task failed"
+```
+
+#### Log Retention Policy
+
+| Log Type | Retention | Storage |
+|----------|-----------|---------|
+| Application logs | 30 days | Loki |
+| Access logs | 90 days | Loki |
+| Error logs | 90 days | Loki + S3 |
+| Audit logs | 1 year | S3 cold storage |
+
+### 8.6 Performance Monitoring
+
+#### Enable Query Timing
+
+Add to `superset_config.py`:
+
+```python
+# Log slow queries
+SLOW_QUERY_LOG_THRESHOLD_MS = 5000  # Log queries > 5s
+
+# Enable query execution time tracking
+QUERY_STATS_LOGGER = True
+```
+
+#### Database Query Monitoring
+
+Monitor the metadata database (PostgreSQL):
+
+```sql
+-- Find slow queries
+SELECT
+  query,
+  mean_exec_time,
+  calls
+FROM pg_stat_statements
+WHERE mean_exec_time > 1000  -- > 1 second
+ORDER BY mean_exec_time DESC
+LIMIT 20;
+
+-- Active queries
+SELECT
+  pid,
+  now() - pg_stat_activity.query_start AS duration,
+  query
+FROM pg_stat_activity
+WHERE state = 'active'
+ORDER BY duration DESC;
+```
+
+### 8.7 Uptime Monitoring
+
+Use external uptime monitors to detect outages:
+
+#### UptimeRobot Configuration
+
+```
+Monitor Type: HTTP(S)
+URL: https://care-k3s.digit.org/superset/health
+Alert Contacts: ops@carehmis.in, #care-alerts Slack
+Check Interval: 5 minutes
+```
+
+#### Health Check Endpoint Response
+
+```json
+{
+  "status": "ok",
+  "database": "ok",
+  "cache": "ok",
+  "celery": "ok",
+  "version": "3.1.3-care1"
+}
+```
+
+### 8.8 Monitoring Dashboard Overview
+
+Create a unified Grafana dashboard with these panels:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ Superset Production Observability                               │
+├─────────────────────────────────────────────────────────────────┤
+│ Uptime: 99.8%    Active Users: 42    Queries/min: 1.2k         │
+├─────────────────────────────────────────────────────────────────┤
+│ Query Performance (p50/p95/p99)     │  Error Rate (5m)         │
+│ [Line graph: 2s/8s/15s]             │  [Line graph: 0.2%]      │
+├─────────────────────────────────────────────────────────────────┤
+│ Celery Queue Depth                  │  Worker Status           │
+│ [Line graph: ~50 tasks]             │  [Status: 2/2 healthy]   │
+├─────────────────────────────────────────────────────────────────┤
+│ Memory Usage                        │  CPU Usage               │
+│ [Line graph: 65% of 2Gi]           │  [Line graph: 0.4 cores] │
+├─────────────────────────────────────────────────────────────────┤
+│ Recent Errors (last 1h)             │  Slow Queries (>10s)     │
+│ [Table: timestamp, error, count]    │  [Table: query, time]    │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 8.9 Runbook: Responding to Alerts
+
+#### Alert: SupersetHighErrorRate
+
+1. **Check error logs:**
+   ```bash
+   kubectl logs -n care deployment/superset-web -c superset --tail=100 | grep ERROR
+   ```
+
+2. **Common causes:**
+   - Database connection pool exhausted
+   - Invalid SQL in saved queries
+   - Permission denied errors
+
+3. **Immediate action:**
+   - Identify failing queries in logs
+   - Disable problematic dashboards temporarily
+   - Scale up worker replicas if queue is backed up
+
+#### Alert: SupersetSlowQueries
+
+1. **Identify slow queries:**
+   ```bash
+   # From Superset logs
+   kubectl logs -n care deployment/superset-web | grep "slow query"
+   ```
+
+2. **Optimization steps:**
+   - Add database indexes for commonly filtered columns
+   - Reduce dashboard auto-refresh frequency
+   - Enable query result caching
+   - Simplify complex dataset SQL
+
+#### Alert: SupersetWorkersDown
+
+1. **Check worker status:**
+   ```bash
+   kubectl get pods -n care -l component=worker
+   kubectl logs -n care deployment/superset-worker --tail=50
+   ```
+
+2. **Common causes:**
+   - Redis connection failed
+   - Out of memory (task too large)
+   - Broker URL misconfigured
+
+3. **Recovery:**
+   ```bash
+   # Restart workers
+   kubectl rollout restart deployment/superset-worker -n care
+   ```
+
+---
+
+## 9. Troubleshooting
 
 | Symptom | Likely Cause | Resolution |
 |--------|-------------|------------|

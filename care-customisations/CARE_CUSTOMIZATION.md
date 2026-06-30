@@ -164,6 +164,317 @@ To enable email reports:
    kubectl rollout restart deployment/superset-web -n care
    ```
 
+## Backup & Restore Procedures
+
+### Why Backups Matter
+
+Superset contains critical assets:
+- **Dashboards** - Layouts, filters, and configurations
+- **Charts** - Visualization definitions and queries
+- **Datasets** - Virtual datasets and metrics
+- **User metadata** - Permissions, roles, and RLS rules
+- **Saved queries** - SQL Lab queries and history
+
+**Recommendation:** Perform daily automated backups and test restore procedures quarterly.
+
+### 1. Export Dashboards & Charts
+
+#### Method A: Using Superset CLI (Recommended)
+
+Export all content to a ZIP file:
+
+```bash
+# Export all dashboards with dependencies
+superset export-dashboards -f /tmp/superset_export.zip
+
+# Or export specific dashboard by ID
+superset export-dashboards -f /tmp/dashboard_42.zip -d 42
+```
+
+**In Kubernetes:**
+```bash
+kubectl exec -n care deployment/superset-web -c superset -- \
+  superset export-dashboards -f /tmp/backup.zip
+
+# Copy file out of pod
+kubectl cp care/superset-web-xxxxx:/tmp/backup.zip ./superset_backup_$(date +%Y%m%d).zip -c superset
+```
+
+#### Method B: Using Superset UI
+
+1. Navigate to **Dashboards** → Select dashboard → **⋮ Menu**
+2. Click **Export**
+3. Save the `.zip` file
+4. Repeat for all critical dashboards
+
+**Limitation:** UI export only handles one dashboard at a time.
+
+### 2. Backup Metadata Database
+
+The metadata database stores all Superset configuration. Back it up regularly using PostgreSQL tools.
+
+#### Manual Backup
+
+```bash
+# Backup to SQL file
+kubectl exec -n care postgres-care-1 -- \
+  pg_dump -U superset superset > superset_metadata_$(date +%Y%m%d).sql
+
+# Backup with compression
+kubectl exec -n care postgres-care-1 -- \
+  pg_dump -U superset superset | gzip > superset_metadata_$(date +%Y%m%d).sql.gz
+```
+
+#### Automated Daily Backup (Kubernetes CronJob)
+
+Create a CronJob to backup daily:
+
+```yaml
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: superset-backup
+  namespace: care
+spec:
+  schedule: "0 2 * * *"  # Daily at 2 AM
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: backup
+              image: postgres:16
+              env:
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: superset-secret
+                      key: DB_PASS
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  pg_dump -h postgres-care-rw.care.svc.cluster.local \
+                          -U superset \
+                          -d superset \
+                          | gzip > /backup/superset_$(date +%Y%m%d_%H%M%S).sql.gz
+              volumeMounts:
+                - name: backup-storage
+                  mountPath: /backup
+          restartPolicy: OnFailure
+          volumes:
+            - name: backup-storage
+              persistentVolumeClaim:
+                claimName: superset-backup-pvc
+```
+
+**Don't forget to create the PVC:**
+```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: superset-backup-pvc
+  namespace: care
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+```
+
+### 3. Restore Procedures
+
+#### Restore Dashboards from Export
+
+```bash
+# Using Superset CLI
+superset import-dashboards -p /tmp/backup.zip
+
+# In Kubernetes
+kubectl cp ./superset_backup_20260630.zip care/superset-web-xxxxx:/tmp/backup.zip -c superset
+kubectl exec -n care deployment/superset-web -c superset -- \
+  superset import-dashboards -p /tmp/backup.zip
+```
+
+#### Restore Metadata Database
+
+**⚠️ WARNING:** This will overwrite all existing data. Test in dev environment first.
+
+```bash
+# Restore from SQL backup
+kubectl exec -i -n care postgres-care-1 -- \
+  psql -U superset superset < superset_metadata_20260630.sql
+
+# Restore from compressed backup
+gunzip < superset_metadata_20260630.sql.gz | \
+  kubectl exec -i -n care postgres-care-1 -- \
+  psql -U superset superset
+```
+
+**After restore:**
+```bash
+# Restart Superset pods to clear caches
+kubectl rollout restart deployment/superset-web -n care
+kubectl rollout restart deployment/superset-worker -n care
+```
+
+### 4. Disaster Recovery Checklist
+
+Follow this checklist when recovering from a disaster:
+
+**Step 1: Verify Infrastructure**
+```bash
+# Check PostgreSQL
+kubectl get pods -n care | grep postgres
+kubectl exec -n care postgres-care-1 -- psql -U postgres -c "\l"
+
+# Check Redis
+kubectl get pods -n care | grep redis
+kubectl exec -n care redis-0 -- redis-cli ping
+```
+
+**Step 2: Restore Metadata Database**
+```bash
+# Drop and recreate database (if corrupted)
+kubectl exec -it -n care postgres-care-1 -- psql -U postgres
+DROP DATABASE superset;
+CREATE DATABASE superset;
+GRANT ALL PRIVILEGES ON DATABASE superset TO superset;
+\q
+
+# Restore from latest backup
+kubectl exec -i -n care postgres-care-1 -- \
+  psql -U superset superset < latest_backup.sql
+```
+
+**Step 3: Deploy Superset**
+```bash
+cd /Users/jagankumar/Office/Work/repo/Care/care_deployment/k3s/k8s/superset
+
+# Apply manifests
+kubectl apply -f 01-configmap-superset.yaml
+kubectl apply -f 02-configmap-nginx.yaml
+kubectl apply -f 03-secret-superset.yaml
+kubectl apply -f 04-init-job.yaml
+
+# Wait for init job
+kubectl wait --for=condition=complete --timeout=600s job/superset-init-db -n care
+
+# Deploy application
+kubectl apply -f 05-deployment-web.yaml
+kubectl apply -f 06-deployment-worker.yaml
+kubectl apply -f 07-deployment-beat.yaml
+kubectl apply -f 08-service.yaml
+kubectl apply -f 09-middleware.yaml
+kubectl apply -f 10-ingress.yaml
+```
+
+**Step 4: Verify Functionality**
+```bash
+# Check pod status
+kubectl get pods -n care -l app=superset
+
+# Check logs
+kubectl logs -n care deployment/superset-web -c superset --tail=50
+
+# Test login
+curl -k https://care-k3s.digit.org/superset/health
+```
+
+**Step 5: Restore Dashboard Exports (if needed)**
+```bash
+# Import dashboard ZIP files
+kubectl exec -n care deployment/superset-web -c superset -- \
+  superset import-dashboards -p /tmp/dashboard_exports.zip
+```
+
+### 5. Backup Best Practices
+
+**Daily Tasks:**
+- ✅ Automated metadata database backup (CronJob)
+- ✅ Verify backup file is created
+- ✅ Rotate old backups (keep last 30 days)
+
+**Weekly Tasks:**
+- ✅ Export critical dashboards manually via CLI
+- ✅ Store exports in version control (GitOps)
+
+**Monthly Tasks:**
+- ✅ Test restore procedure in dev environment
+- ✅ Document any restore issues
+- ✅ Verify backup file integrity (`pg_restore --list backup.sql`)
+
+**Quarterly Tasks:**
+- ✅ Perform full disaster recovery test
+- ✅ Update disaster recovery documentation
+- ✅ Review backup retention policy
+
+### 6. Backup Retention Policy
+
+Recommended retention schedule:
+
+| Backup Type | Frequency | Retention |
+|-------------|-----------|-----------|
+| Metadata DB | Daily | 30 days |
+| Metadata DB | Weekly | 12 weeks |
+| Metadata DB | Monthly | 12 months |
+| Dashboard exports | Weekly | 12 weeks |
+| Dashboard exports | Monthly | Forever (in Git) |
+
+### 7. Offsite Backup Storage
+
+Store backups in multiple locations for disaster recovery:
+
+**Option 1: S3-Compatible Storage**
+```bash
+# Upload to S3 using AWS CLI
+aws s3 cp superset_backup.sql.gz \
+  s3://care-backups/superset/$(date +%Y/%m/%d)/
+```
+
+**Option 2: Network Storage**
+```bash
+# Mount NFS share
+mount -t nfs backup-server:/backups /mnt/backups
+
+# Copy backup
+cp superset_backup.sql.gz /mnt/backups/superset/
+```
+
+**Option 3: Git for Dashboard Exports**
+```bash
+# Store dashboard exports in version control
+cd /path/to/superset-configs-repo
+mkdir -p exports/$(date +%Y-%m)
+cp dashboard_exports.zip exports/$(date +%Y-%m)/
+git add exports/
+git commit -m "backup: dashboard exports $(date +%Y-%m-%d)"
+git push
+```
+
+### 8. Troubleshooting Backup Issues
+
+**Issue: pg_dump fails with "permission denied"**
+```bash
+# Solution: Use postgres superuser
+kubectl exec -n care postgres-care-1 -- \
+  pg_dump -U postgres superset > backup.sql
+```
+
+**Issue: Restore fails with "database in use"**
+```bash
+# Solution: Terminate active connections first
+kubectl exec -n care postgres-care-1 -- psql -U postgres -c \
+  "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='superset';"
+```
+
+**Issue: Import fails with "uuid already exists"**
+```bash
+# Solution: Use --force flag to overwrite
+superset import-dashboards -p backup.zip --force
+```
+
 ## Database Drivers
 
 ### PostgreSQL (Default)
