@@ -89,6 +89,8 @@ import { ChartCustomizationPlugins, FilterPlugins } from 'src/constants';
 import AgGridTableChartPlugin from '@superset-ui/plugin-chart-ag-grid-table';
 import TimeTableChartPlugin from '../TimeTable';
 
+import DrillBarChartPlugin from '@superset-ui/plugin-chart-drill-bar';
+
 export default class MainPreset extends Preset {
   constructor() {
     const experimentalPlugins = isFeatureEnabled(
@@ -196,6 +198,9 @@ export default class MainPreset extends Preset {
         new EchartsSunburstChartPlugin().configure({ key: VizType.Sunburst }),
         new HandlebarsChartPlugin().configure({ key: VizType.Handlebars }),
         new EchartsBubbleChartPlugin().configure({ key: VizType.Bubble }),
+        
+        new DrillBarChartPlugin().configure({ key: 'drill_bar' }),
+        
         new CartodiagramPlugin({
           defaultLayers: [
             {
