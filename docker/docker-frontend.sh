@@ -33,7 +33,7 @@ if [ "$BUILD_SUPERSET_FRONTEND_IN_DOCKER" = "true" ]; then
     fi
 
     echo "Running \"npm install\""
-    npm install
+    npm install --legacy-peer-deps
 
     echo "Start webpack dev server"
     # start the webpack dev server, serving dynamically at http://localhost:9000
