@@ -54,22 +54,24 @@ const controlPanel: ControlPanelConfig = {
         ],
         [
           {
-            name: 'metric',
+            name: 'metrics',
             config: {
               type: 'DndMetricSelect',
-              label: 'Metric (measure)',
-              description: 'The numeric measure to aggregate at each drill level.',
-              multi: false,
+              label: 'Metrics (measures)',
+              description: 'One or more numeric measures to plot as grouped bars at each drill level.',
+              multi: true,
               mapStateToProps: (state: any) => ({
                 columns: state.datasource?.columns ?? [],
                 savedMetrics: state.datasource?.metrics ?? [],
                 datasource: state.datasource,
               }),
               validators: [(value: unknown) => {
-                if (!value) return 'A metric is required.';
+                if (!Array.isArray(value) || value.length < 1) {
+                  return 'At least one metric is required.';
+                }
                 return false;
               }],
-              default: null,
+              default: [],
             },
           },
         ],
