@@ -75,6 +75,24 @@ const controlPanel: ControlPanelConfig = {
             },
           },
         ],
+        [
+          {
+            name: 'sortBy',
+            config: {
+              type: 'SelectControl',
+              label: 'Sort X-Axis By',
+              description: 'Choose how bars are ordered along the X-axis at every drill level.',
+              default: 'metric_desc',
+              choices: [
+                ['metric_desc', 'Metric Value (High to Low)'],
+                ['metric_asc', 'Metric Value (Low to High)'],
+                ['label_asc', 'Label (A → Z)'],
+                ['label_desc', 'Label (Z → A)'],
+              ],
+              clearable: false,
+            },
+          },
+        ],
         ['adhoc_filters'],
         ['row_limit'],
       ],

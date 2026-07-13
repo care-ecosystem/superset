@@ -364,6 +364,7 @@ export default function transformProps(chartProps: ChartProps): DrillBarChartPro
       ...drillPath,
       {
         column: hierarchyColumnLabels[currentDepth],
+        rawColumn: hierarchyColumns[currentDepth],
         value: datum.label,
         label: datum.label,
       },

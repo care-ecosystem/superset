@@ -57,7 +57,7 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}
             type=match,pattern=care-v(.*),group=1
-            type=sha,prefix={{branch}}-,format=short
+            type=sha,prefix={{branch}}-,format=short,enable=${{ github.event_name != 'pull_request' }}
             type=raw,value=${{ github.ref_name }}-${{ steps.vars.outputs.SHORT_SHA }}
             type=raw,value=${{ github.ref_name }}-${{ github.run_number }}-${{ steps.vars.outputs.SHORT_SHA }}
           labels: |

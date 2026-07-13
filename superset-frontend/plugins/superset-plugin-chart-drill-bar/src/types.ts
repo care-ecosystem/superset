@@ -133,8 +133,10 @@ export interface BarDatum {
 
 // ─── Drill-down path entry (one breadcrumb step) ─────────────────────────────
 export interface DrillPath {
-  /** Column name at this level, e.g. "continent" */
+  /** Display label for this level's column, e.g. "Month" — used in the breadcrumb only */
   column: string;
+  /** The actual column reference (plain string OR adhoc-column object) used to build the WHERE filter for the next query */
+  rawColumn: any;
   /** Value selected, e.g. "Asia" */
   value: string;
   /** Human-readable label shown in the breadcrumb */
