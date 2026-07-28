@@ -72,9 +72,9 @@ RUN --mount=type=bind,source=./superset-frontend/package.json,target=./package.j
     --mount=type=cache,target=/root/.cache \
     --mount=type=cache,target=/root/.npm \
     if [ "${DEV_MODE}" = "false" ]; then \
-        npm ci --legacy-peer-deps; \
+        npm install --legacy-peer-deps; \
     else \
-        echo "Skipping 'npm ci' in dev mode"; \
+        echo "Skipping 'npm install' in dev mode"; \
     fi
 
 # Runs the webpack build process
