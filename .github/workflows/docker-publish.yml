@@ -141,6 +141,7 @@ jobs:
             -e DATABASE_DB=superset \
             -e DATABASE_USER=superset \
             -e DATABASE_PASSWORD=superset \
+            -e SUPERSET_SECRET_KEY=not-a-secret \
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:pr-${{ github.event.number }} \
             superset version
 
