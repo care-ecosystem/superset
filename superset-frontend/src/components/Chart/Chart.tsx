@@ -30,6 +30,7 @@ import {
   type FilterState,
   type JsonObject,
   type AgGridChartState,
+  Drilldown
 } from '@superset-ui/core';
 import { styled } from '@apache-superset/core/theme';
 import type { ChartState, Datasource, ChartStatus } from 'src/explore/types';

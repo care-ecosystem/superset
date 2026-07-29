@@ -29,7 +29,8 @@ ARG BUILD_TRANSLATIONS="false"
 ######################################################################
 # superset-node-ci used as a base for building frontend assets and CI
 ######################################################################
-FROM --platform=${BUILDPLATFORM} node:24-trixie-slim AS superset-node-ci
+# FROM --platform=${BUILDPLATFORM} node:24-trixie-slim AS superset-node-ci
+FROM --platform=${BUILDPLATFORM} node:22.23.1-trixie-slim AS superset-node-ci
 ARG BUILD_TRANSLATIONS
 ENV BUILD_TRANSLATIONS=${BUILD_TRANSLATIONS}
 ARG DEV_MODE="false"           # Skip frontend build in dev mode
@@ -72,7 +73,7 @@ RUN --mount=type=bind,source=./superset-frontend/package.json,target=./package.j
     --mount=type=cache,target=/root/.cache \
     --mount=type=cache,target=/root/.npm \
     if [ "${DEV_MODE}" = "false" ]; then \
-        npm ci; \
+        npm ci --legacy-peer-deps; \
     else \
         echo "Skipping 'npm ci' in dev mode"; \
     fi

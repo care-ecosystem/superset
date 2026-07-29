@@ -27,6 +27,19 @@ import sys
 from celery.schedules import crontab
 from flask_caching.backends.filesystemcache import FileSystemCache
 
+from sqlalchemy.pool import QueuePool
+
+def DB_CONNECTION_MUTATOR(sqlalchemy_url, engine_kwargs, effective_username, security_manager, source):
+    # Match your data-warehouse DB specifically — adjust the string to something
+    # unique in its connection string (host, db name, etc.)
+    if "/care" in str(sqlalchemy_url):
+        engine_kwargs["poolclass"] = QueuePool
+        engine_kwargs["pool_size"] = 15
+        engine_kwargs["max_overflow"] = 10
+        engine_kwargs["pool_pre_ping"] = True
+        engine_kwargs["pool_timeout"] = 30
+    return sqlalchemy_url, engine_kwargs
+
 logger = logging.getLogger()
 
 DATABASE_DIALECT = os.getenv("DATABASE_DIALECT")
