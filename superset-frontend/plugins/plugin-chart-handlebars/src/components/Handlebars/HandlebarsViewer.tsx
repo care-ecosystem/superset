@@ -114,6 +114,32 @@ Handlebars.registerHelper('parseJson', (jsonString: string) => {
   }
 });
 
+// usage: {{round value decimals}}
+Handlebars.registerHelper('round', (value: any, decimals: any) => {
+  const num = Number(value);
+  const d = typeof decimals === 'number' ? decimals : 0;
+  if (Number.isNaN(num)) return value;
+  return Number(num.toFixed(d));
+});
+
+// usage: {{divide numerator denominator}}
+Handlebars.registerHelper('divide', (a: any, b: any) => {
+  const numerator = Number(a);
+  const denominator = Number(b);
+  if (Number.isNaN(numerator) || Number.isNaN(denominator) || denominator === 0) {
+    return '';
+  }
+  return numerator / denominator;
+});
+
+// usage: {{multiply a b}}
+Handlebars.registerHelper('multiply', (a: any, b: any) => {
+  const x = Number(a);
+  const y = Number(b);
+  if (Number.isNaN(x) || Number.isNaN(y)) return '';
+  return x * y;
+});
+
 Helpers.registerHelpers(Handlebars);
 HandlebarsGroupBy.register(Handlebars);
 
