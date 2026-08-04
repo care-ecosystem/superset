@@ -17,7 +17,7 @@
  * state and refs so we avoid the "two owners" problem that arises when D3
  * tries to manage DOM nodes that React also owns.
  */
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { scaleBand, scaleLinear, scaleOrdinal } from 'd3-scale';
 import { max } from 'd3-array';
 import { axisBottom, axisLeft } from 'd3-axis';
@@ -37,7 +37,14 @@ interface TooltipState {
 }
 
 // ── Margins (pixels) ──────────────────────────────────────────────────────────
-const MARGIN = { top: 20, right: 20, bottom: 140, left: 100 };
+// const MARGIN = { top: 20, right: 20, bottom: 140, left: 100 };
+
+const TOP_MARGIN = 20;
+const RIGHT_MARGIN = 20;
+const LEFT_MARGIN = 70;
+const MIN_BOTTOM_MARGIN = 60;
+const X_LABEL_ROTATION_DEG = 35;
+
 const BREADCRUMB_HEIGHT = 36; // px reserved at top for breadcrumb bar
 const LEGEND_HEIGHT = 28; // px reserved at top for legend row
 const MIN_GROUP_WIDTH = 150; // minimum px width per hierarchy label group, prevents bar squeeze
@@ -60,6 +67,16 @@ function paletteColor(index: number): string {
   return PALETTE[index % PALETTE.length];
 }
 
+let measureCanvas: HTMLCanvasElement | null = null;
+function measureTextWidth(text: string, fontSize: number, fontFamily = 'sans-serif'): number {
+  if (typeof document === 'undefined') return text.length * fontSize * 0.6;
+  if (!measureCanvas) measureCanvas = document.createElement('canvas');
+  const ctx = measureCanvas.getContext('2d');
+  if (!ctx) return text.length * fontSize * 0.6;
+  ctx.font = `${fontSize}px ${fontFamily}`;
+  return ctx.measureText(text).width;
+}
+
 export default function DrillBarChart(props: DrillBarChartProps) {
   const {
     width,
@@ -74,6 +91,8 @@ export default function DrillBarChart(props: DrillBarChartProps) {
     showLabels,
     showTooltip,
     animationDuration,
+    xAxisFontSize,
+    yAxisFontSize,
     onDrillDown,
     onDrillUp,
   } = props;
@@ -93,6 +112,18 @@ export default function DrillBarChart(props: DrillBarChartProps) {
     value: 0,
   });
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
+
+  const maxXLabelWidth = useMemo(() => {
+    if (!data.length) return 0;
+    return Math.max(...data.map((d) => measureTextWidth(d.label, xAxisFontSize)));
+  }, [data, xAxisFontSize]);
+
+  const bottomMargin = Math.max(
+    MIN_BOTTOM_MARGIN,
+    Math.ceil(maxXLabelWidth * Math.sin((X_LABEL_ROTATION_DEG * Math.PI) / 180)) + 30,
+  );
+
+  const MARGIN = { top: TOP_MARGIN, right: RIGHT_MARGIN, bottom: bottomMargin, left: LEFT_MARGIN };
 
 // Derived sizes
   const chartHeight = height - BREADCRUMB_HEIGHT - LEGEND_HEIGHT;
@@ -157,8 +188,8 @@ export default function DrillBarChart(props: DrillBarChartProps) {
       .style('text-anchor', 'end')
       .attr('dx', '-0.5em')
       .attr('dy', '0.15em')
-      .attr('transform', 'rotate(-35)')
-      .style('font-size', '12px');
+      .attr('transform', `rotate(-${X_LABEL_ROTATION_DEG})`)
+      .style('font-size', `${xAxisFontSize}px`);
 
     // Y axis
     const yAxis = axisLeft(yScale).ticks(6).tickSizeOuter(0);
@@ -167,8 +198,8 @@ export default function DrillBarChart(props: DrillBarChartProps) {
       .duration(animationDuration)
       .call(yAxis as any)
       .selectAll('text')
-      .style('font-size', '12px');
-  }, [data, metricLabels, innerWidth, innerHeight, animationDuration]);
+      .style('font-size', `${yAxisFontSize}px`);
+  }, [data, metricLabels, innerWidth, innerHeight, animationDuration, xAxisFontSize, yAxisFontSize]);
 
   // ── Tooltip handlers ───────────────────────────────────────────────────────
   const handleMouseMove = useCallback(

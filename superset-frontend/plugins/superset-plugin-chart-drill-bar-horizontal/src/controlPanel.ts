@@ -133,6 +133,37 @@ const controlPanel: ControlPanelConfig = {
             },
           },
         ],
+        [
+          {
+            name: 'yAxisFontSize',
+            config: {
+              type: 'SliderControl',
+              label: 'Y-Axis Label Font Size',
+              description:
+                'Font size for the hierarchy-label text along the Y-axis. ' +
+                'The chart automatically widens its left margin to fit ' +
+                'the longest label at this size, so text is never cut off.',
+              default: 12,
+              min: 8,
+              max: 22,
+              step: 1,
+              renderTrigger: true,
+            },
+          },
+          {
+            name: 'xAxisFontSize',
+            config: {
+              type: 'SliderControl',
+              label: 'X-Axis Label Font Size',
+              description: 'Font size for the value-tick text along the X-axis.',
+              default: 12,
+              min: 8,
+              max: 22,
+              step: 1,
+              renderTrigger: true,
+            },
+          },
+        ],
       ],
     },
     sections.advancedAnalyticsControls,

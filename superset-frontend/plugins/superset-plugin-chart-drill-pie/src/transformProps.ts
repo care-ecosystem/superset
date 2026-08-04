@@ -73,6 +73,7 @@ export default function transformProps(chartProps: ChartProps): DrillPieChartPro
     showLabels: fd.showLabels ?? true,
     showTooltip: fd.showTooltip ?? true,
     showLegend: fd.showLegend ?? true,
+    legendFontSize: Number(fd.legendFontSize ?? 12),
     innerRadiusPercent: Number(fd.innerRadiusPercent ?? 55),
     showCenterTotal: fd.showCenterTotal ?? true,
     animationDuration: Number(fd.animationDuration ?? 400),

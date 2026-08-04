@@ -14,6 +14,7 @@ export interface DrillPieFormData extends QueryFormData {
   showLabels: boolean;
   showTooltip: boolean;
   showLegend: boolean;
+  legendFontSize: number;
   /** Inner radius as a percentage (0-90) of the outer radius. 0 = solid pie. */
   innerRadiusPercent: number;
   /** Whether to show the sum-of-all-slices value in the donut's center hole. Only rendered when innerRadiusPercent > 0. */
@@ -48,6 +49,7 @@ export interface DrillPieChartProps {
   showLabels: boolean;
   showTooltip: boolean;
   showLegend: boolean;
+  legendFontSize: number;
   innerRadiusPercent: number;
   showCenterTotal: boolean;
   animationDuration: number;

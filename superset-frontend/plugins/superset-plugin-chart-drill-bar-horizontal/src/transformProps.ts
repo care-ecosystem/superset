@@ -87,6 +87,8 @@ export default function transformProps(chartProps: ChartProps): DrillBarChartPro
     showLabels: fd.showLabels ?? true,
     showTooltip: fd.showTooltip ?? true,
     animationDuration: Number(fd.animationDuration ?? 400),
+    xAxisFontSize: Number(fd.xAxisFontSize ?? 12),
+    yAxisFontSize: Number(fd.yAxisFontSize ?? 12),
     onDrillDown,
     onDrillUp,
   };

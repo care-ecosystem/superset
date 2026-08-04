@@ -7,8 +7,8 @@
  *   - value scale (scaleLinear) runs across the X-axis, not up Y
  * Bars grow rightward from x=0 instead of upward from the bottom.
  */
-import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { scaleBand, scaleLinear } from 'd3-scale';
+import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
+import { scaleBand, scaleLinear} from 'd3-scale';
 import { max } from 'd3-array';
 import { axisBottom, axisLeft } from 'd3-axis';
 import { select } from 'd3-selection';
@@ -25,7 +25,11 @@ interface TooltipState {
   value: number;
 }
 
-const MARGIN = { top: 20, right: 40, bottom: 40, left: 140 };
+const TOP_MARGIN = 20;
+const RIGHT_MARGIN = 40;
+const BOTTOM_MARGIN = 40;
+const MIN_LEFT_MARGIN = 80;
+
 const BREADCRUMB_HEIGHT = 36;
 const LEGEND_HEIGHT = 28;
 const MIN_GROUP_HEIGHT = 40; // minimum px height per hierarchy label group
@@ -45,6 +49,16 @@ function paletteColor(index: number): string {
   return PALETTE[index % PALETTE.length];
 }
 
+let measureCanvas: HTMLCanvasElement | null = null;
+function measureTextWidth(text: string, fontSize: number, fontFamily = 'sans-serif'): number {
+  if (typeof document === 'undefined') return text.length * fontSize * 0.6;
+  if (!measureCanvas) measureCanvas = document.createElement('canvas');
+  const ctx = measureCanvas.getContext('2d');
+  if (!ctx) return text.length * fontSize * 0.6;
+  ctx.font = `${fontSize}px ${fontFamily}`;
+  return ctx.measureText(text).width;
+}
+
 export default function DrillBarHorizontalChart(props: DrillBarChartProps) {
   const {
     width,
@@ -59,6 +73,8 @@ export default function DrillBarHorizontalChart(props: DrillBarChartProps) {
     showLabels,
     showTooltip,
     animationDuration,
+    xAxisFontSize,
+    yAxisFontSize,
     onDrillDown,
     onDrillUp,
   } = props;
@@ -72,6 +88,15 @@ export default function DrillBarHorizontalChart(props: DrillBarChartProps) {
     visible: false, x: 0, y: 0, groupLabel: '', metricLabel: '', value: 0,
   });
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
+
+  const maxYLabelWidth = useMemo(() => {
+    if (!data.length) return 0;
+    return Math.max(...data.map((d) => measureTextWidth(d.label, yAxisFontSize)));
+  }, [data, yAxisFontSize]);
+
+  const leftMargin = Math.max(MIN_LEFT_MARGIN, Math.ceil(maxYLabelWidth) + 24);
+
+  const MARGIN = { top: TOP_MARGIN, right: RIGHT_MARGIN, bottom: BOTTOM_MARGIN, left: leftMargin };
 
   const chartHeightAvailable = height - BREADCRUMB_HEIGHT - LEGEND_HEIGHT;
   const innerWidth = Math.max(0, width - MARGIN.left - MARGIN.right);
@@ -120,7 +145,7 @@ export default function DrillBarHorizontalChart(props: DrillBarChartProps) {
       .duration(animationDuration)
       .call(xAxis as any)
       .selectAll('text')
-      .style('font-size', '12px');
+      .style('font-size', `${xAxisFontSize}px`);
 
     const yAxis = axisLeft(groupScale).tickSizeOuter(0);
     select(yAxisRef.current)
@@ -128,8 +153,8 @@ export default function DrillBarHorizontalChart(props: DrillBarChartProps) {
       .duration(animationDuration)
       .call(yAxis as any)
       .selectAll('text')
-      .style('font-size', '12px');
-  }, [data, metricLabels, innerWidth, innerHeight, animationDuration]);
+      .style('font-size', `${yAxisFontSize}px`);
+  }, [data, metricLabels, innerWidth, innerHeight, animationDuration, xAxisFontSize, yAxisFontSize]);
 
   const handleMouseMove = useCallback(
     (e: React.MouseEvent<SVGRectElement>, groupLabel: string, mv: MetricValue) => {

@@ -43,6 +43,16 @@ function colorFor(index: number): string {
   return PALETTE[index % PALETTE.length];
 }
 
+let measureCanvas: HTMLCanvasElement | null = null;
+function measureTextWidth(text: string, fontSize: number, fontFamily = 'sans-serif'): number {
+  if (typeof document === 'undefined') return text.length * fontSize * 0.6;
+  if (!measureCanvas) measureCanvas = document.createElement('canvas');
+  const ctx = measureCanvas.getContext('2d');
+  if (!ctx) return text.length * fontSize * 0.6;
+  ctx.font = `${fontSize}px ${fontFamily}`;
+  return ctx.measureText(text).width;
+}
+
 export default function DrillPieChart(props: DrillPieChartProps) {
   const {
     width,
@@ -55,6 +65,7 @@ export default function DrillPieChart(props: DrillPieChartProps) {
     showLabels,
     showTooltip,
     showLegend,
+    legendFontSize,
     innerRadiusPercent,
     showCenterTotal,
     animationDuration,
@@ -68,7 +79,7 @@ export default function DrillPieChart(props: DrillPieChartProps) {
   const [hoveredLabel, setHoveredLabel] = useState<string | null>(null);
 
   const chartHeight = height - BREADCRUMB_HEIGHT;
-  const chartWidth = showLegend ? Math.max(0, width - LEGEND_WIDTH) : width;
+  const chartWidth = Math.max(0, width - legendWidth);
   const radius = Math.max(0, Math.min(chartWidth, chartHeight) / 2 - 20);
   // innerRadiusPercent is 0-85; 0 renders a solid pie, higher values open up
   // more of a hole in the middle. Recalculates on every render, so drilling
@@ -166,6 +177,19 @@ export default function DrillPieChart(props: DrillPieChartProps) {
   );
 
   const fmt = format(',.0f');
+
+  const SWATCH_AND_PADDING = 40;
+  const maxLegendLabelWidth = useMemo(() => {
+    if (!data.length) return 0;
+    return Math.max(
+      ...data.map((d) => measureTextWidth(`${d.label} (${fmt(d.value)})`, legendFontSize)),
+    );
+  }, [data, legendFontSize]);
+
+  const legendWidth = showLegend
+    ? Math.min(width * 0.5, Math.ceil(maxLegendLabelWidth) + SWATCH_AND_PADDING)
+    : 0;
+
   const canDrillFurther = currentDepth < hierarchyColumns.length - 1;
 
   return (
@@ -270,14 +294,14 @@ export default function DrillPieChart(props: DrillPieChartProps) {
         {showLegend && (
           <div
             style={{
-              width: LEGEND_WIDTH, overflowY: 'auto', padding: '8px', display: 'flex',
+              width: legendWidth, overflowY: 'auto', padding: '8px', display: 'flex',
               flexDirection: 'column', gap: 6,
             }}
           >
             {data.map((d, idx) => (
               <div key={d.label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: colorFor(idx), flexShrink: 0 }} />
-                <span style={{ fontSize: 12, color: '#444', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <span style={{ fontSize: legendFontSize, color: '#444', whiteSpace: 'nowrap' }}>
                   {d.label} ({fmt(d.value)})
                 </span>
               </div>

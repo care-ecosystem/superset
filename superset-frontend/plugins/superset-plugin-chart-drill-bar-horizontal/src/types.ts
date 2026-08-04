@@ -49,6 +49,8 @@ export interface DrillBarChartProps {
   showLabels: boolean;
   showTooltip: boolean;
   animationDuration: number;
+  xAxisFontSize: number;
+  yAxisFontSize: number;
   onDrillDown: (datum: BarDatum) => void;
   onDrillUp: (targetDepth: number) => void;
 }

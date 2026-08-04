@@ -88,6 +88,22 @@ const controlPanel: ControlPanelConfig = {
               renderTrigger: true,
             },
           },
+          {
+            name: 'legendFontSize',
+            config: {
+              type: 'SliderControl',
+              label: 'Legend Font Size',
+              description:
+                'Font size for legend item text. The legend panel automatically ' +
+                'widens to fit the longest label at this size, so text is ' +
+                'never cut off.',
+              default: 12,
+              min: 8,
+              max: 20,
+              step: 1,
+              renderTrigger: true,
+            },
+          },
         ],
         [
           {
