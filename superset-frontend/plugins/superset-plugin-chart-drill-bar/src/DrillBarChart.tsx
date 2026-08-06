@@ -43,6 +43,7 @@ const TOP_MARGIN = 20;
 const RIGHT_MARGIN = 20;
 const LEFT_MARGIN = 70;
 const MIN_BOTTOM_MARGIN = 60;
+const MAX_BOTTOM_MARGIN = 160;
 const X_LABEL_ROTATION_DEG = 35;
 
 const BREADCRUMB_HEIGHT = 36; // px reserved at top for breadcrumb bar
@@ -100,9 +101,6 @@ export default function DrillBarChart(props: DrillBarChartProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  const scrollByAmount = useCallback((amount: number) => {
-    scrollContainerRef.current?.scrollBy({ left: amount, behavior: 'smooth' });
-  }, []);
   const [tooltip, setTooltip] = useState<TooltipState>({
     visible: false,
     x: 0,
@@ -118,13 +116,17 @@ export default function DrillBarChart(props: DrillBarChartProps) {
     return Math.max(...data.map((d) => measureTextWidth(d.label, xAxisFontSize)));
   }, [data, xAxisFontSize]);
 
-  const bottomMargin = Math.max(
-    MIN_BOTTOM_MARGIN,
-    Math.ceil(maxXLabelWidth * Math.sin((X_LABEL_ROTATION_DEG * Math.PI) / 180)) + 30,
-  );
+  const bottomMargin = Math.min(
+      MAX_BOTTOM_MARGIN,
+      Math.max(
+        MIN_BOTTOM_MARGIN,
+        Math.ceil(maxXLabelWidth * Math.sin((X_LABEL_ROTATION_DEG * Math.PI) / 180)) + 30,
+      ),
+    );
 
   const MARGIN = { top: TOP_MARGIN, right: RIGHT_MARGIN, bottom: bottomMargin, left: LEFT_MARGIN };
 
+  const SCROLLBAR_RESERVE = 16; // reserve space so the native horizontal scrollbar isn't clipped
 // Derived sizes
   const chartHeight = height - BREADCRUMB_HEIGHT - LEGEND_HEIGHT;
   // The chart's drawable width grows with the number of hierarchy labels, so
@@ -134,7 +136,7 @@ export default function DrillBarChart(props: DrillBarChartProps) {
   const neededWidth = data.length * MIN_GROUP_WIDTH;
   const innerWidth = Math.max(availableWidth, neededWidth);
   const svgWidth = innerWidth + MARGIN.left + MARGIN.right;
-  const innerHeight = Math.max(0, chartHeight - MARGIN.top - MARGIN.bottom);
+  const innerHeight = Math.max(0, chartHeight - SCROLLBAR_RESERVE - MARGIN.top - MARGIN.bottom);
 
   // ── Colour per metric ─────────────────────────────────────────────────────
   // Metric 0 uses the user's barColor/barColorHover controls; any further
@@ -239,10 +241,8 @@ export default function DrillBarChart(props: DrillBarChartProps) {
 
   // Label formatter
   const fmt = format(',.0f');
-
   const canDrillFurther = currentDepth < hierarchyColumns.length - 1;
 
-  
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
@@ -332,14 +332,6 @@ export default function DrillBarChart(props: DrillBarChartProps) {
         )}
       </div>
 
-      {/* ── Scroll controls ── */}
-      {data.length * MIN_GROUP_WIDTH > width && (
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6, padding: '4px 8px' }}>
-          <button onClick={() => scrollByAmount(-300)} style={scrollButtonStyle}>‹ Prev</button>
-          <button onClick={() => scrollByAmount(300)} style={scrollButtonStyle}>Next ›</button>
-        </div>
-      )}
-
       {/* ── SVG chart area ── */}
       <div
         ref={scrollContainerRef}
@@ -350,12 +342,13 @@ export default function DrillBarChart(props: DrillBarChartProps) {
           overflowY: 'hidden',
           scrollbarWidth: 'auto', // Firefox: always show scrollbar
           WebkitOverflowScrolling: 'touch',
+          height: chartHeight, // fixed height so a native scrollbar has guaranteed room
         }}
       >
         <svg
           ref={svgRef}
           width={svgWidth}
-          height={chartHeight}
+          height={Math.max(0, chartHeight - SCROLLBAR_RESERVE)}
           style={{ display: 'block' }}
         >
           <g transform={`translate(${MARGIN.left},${MARGIN.top})`}>
@@ -526,16 +519,6 @@ function BreadcrumbItem({ label, active, onClick }: BreadcrumbItemProps) {
 
 const backButtonStyle: React.CSSProperties = {
   marginLeft: 'auto',
-  padding: '2px 10px',
-  fontSize: 12,
-  background: '#fff',
-  border: '1px solid #d9d9d9',
-  borderRadius: 4,
-  cursor: 'pointer',
-  color: '#555',
-};
-
-const scrollButtonStyle: React.CSSProperties = {
   padding: '2px 10px',
   fontSize: 12,
   background: '#fff',

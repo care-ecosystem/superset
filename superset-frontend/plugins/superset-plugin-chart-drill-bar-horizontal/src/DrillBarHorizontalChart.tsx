@@ -29,6 +29,7 @@ const TOP_MARGIN = 20;
 const RIGHT_MARGIN = 40;
 const BOTTOM_MARGIN = 40;
 const MIN_LEFT_MARGIN = 80;
+const MAX_LEFT_MARGIN = 220;
 
 const BREADCRUMB_HEIGHT = 36;
 const LEGEND_HEIGHT = 28;
@@ -94,11 +95,12 @@ export default function DrillBarHorizontalChart(props: DrillBarChartProps) {
     return Math.max(...data.map((d) => measureTextWidth(d.label, yAxisFontSize)));
   }, [data, yAxisFontSize]);
 
-  const leftMargin = Math.max(MIN_LEFT_MARGIN, Math.ceil(maxYLabelWidth) + 24);
+  const leftMargin = Math.min(MAX_LEFT_MARGIN, Math.max(MIN_LEFT_MARGIN, Math.ceil(maxYLabelWidth) + 24));
 
   const MARGIN = { top: TOP_MARGIN, right: RIGHT_MARGIN, bottom: BOTTOM_MARGIN, left: leftMargin };
 
   const chartHeightAvailable = height - BREADCRUMB_HEIGHT - LEGEND_HEIGHT;
+
   const innerWidth = Math.max(0, width - MARGIN.left - MARGIN.right);
   const availableHeight = Math.max(0, chartHeightAvailable - MARGIN.top - MARGIN.bottom);
   const neededHeight = data.length * MIN_GROUP_HEIGHT;
@@ -187,7 +189,6 @@ export default function DrillBarHorizontalChart(props: DrillBarChartProps) {
 
   const fmt = format(',.0f');
   const canDrillFurther = currentDepth < hierarchyColumns.length - 1;
-  const needsScroll = data.length * MIN_GROUP_HEIGHT > chartHeightAvailable;
 
   return (
     <div style={{ position: 'relative', width, height, fontFamily: 'sans-serif' }}>
@@ -221,14 +222,6 @@ export default function DrillBarHorizontalChart(props: DrillBarChartProps) {
           </button>
         )}
       </div>
-
-      {/* ── Scroll controls (vertical, since labels stack down the Y-axis) ── */}
-      {needsScroll && (
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6, padding: '4px 8px' }}>
-          <button onClick={() => scrollByAmount(-300)} style={scrollButtonStyle}>▲ Prev</button>
-          <button onClick={() => scrollByAmount(300)} style={scrollButtonStyle}>▼ Next</button>
-        </div>
-      )}
 
       {/* ── SVG chart area ── */}
       <div ref={scrollContainerRef} style={{ position: 'relative', overflowY: 'auto', overflowX: 'hidden', height: chartHeightAvailable }}>
@@ -336,9 +329,4 @@ function BreadcrumbItem({ label, active, onClick }: BreadcrumbItemProps) {
 const backButtonStyle: React.CSSProperties = {
   marginLeft: 'auto', padding: '2px 10px', fontSize: 12, background: '#fff',
   border: '1px solid #d9d9d9', borderRadius: 4, cursor: 'pointer', color: '#555',
-};
-
-const scrollButtonStyle: React.CSSProperties = {
-  padding: '2px 10px', fontSize: 12, background: '#fff', border: '1px solid #d9d9d9',
-  borderRadius: 4, cursor: 'pointer', color: '#555',
 };

@@ -78,7 +78,22 @@ export default function DrillPieChart(props: DrillPieChartProps) {
   });
   const [hoveredLabel, setHoveredLabel] = useState<string | null>(null);
 
+    const fmt = format(',.0f');
+
+  const SWATCH_AND_PADDING = 40;
+  const maxLegendLabelWidth = useMemo(() => {
+    if (!data.length) return 0;
+    return Math.max(
+      ...data.map((d) => measureTextWidth(`${d.label} (${fmt(d.value)})`, legendFontSize)),
+    );
+  }, [data, legendFontSize]);
+
   const chartHeight = height - BREADCRUMB_HEIGHT;
+
+  const legendWidth = showLegend
+  ? Math.min(width * 0.5, Math.ceil(maxLegendLabelWidth) + SWATCH_AND_PADDING)
+  : 0;
+
   const chartWidth = Math.max(0, width - legendWidth);
   const radius = Math.max(0, Math.min(chartWidth, chartHeight) / 2 - 20);
   // innerRadiusPercent is 0-85; 0 renders a solid pie, higher values open up
@@ -175,20 +190,6 @@ export default function DrillPieChart(props: DrillPieChartProps) {
     },
     [currentDepth, hierarchyColumns, onDrillDown],
   );
-
-  const fmt = format(',.0f');
-
-  const SWATCH_AND_PADDING = 40;
-  const maxLegendLabelWidth = useMemo(() => {
-    if (!data.length) return 0;
-    return Math.max(
-      ...data.map((d) => measureTextWidth(`${d.label} (${fmt(d.value)})`, legendFontSize)),
-    );
-  }, [data, legendFontSize]);
-
-  const legendWidth = showLegend
-    ? Math.min(width * 0.5, Math.ceil(maxLegendLabelWidth) + SWATCH_AND_PADDING)
-    : 0;
 
   const canDrillFurther = currentDepth < hierarchyColumns.length - 1;
 
