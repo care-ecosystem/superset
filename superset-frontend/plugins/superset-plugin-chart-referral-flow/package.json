@@ -1,0 +1,33 @@
+{
+  "name": "@superset-ui/plugin-chart-referral-flow",
+  "version": "0.1.0",
+  "description": "Custom styled table showing patient referral flow between facility levels",
+  "keywords": ["superset", "superset-chart-plugins", "table", "referral"],
+  "main": "lib/index.js",
+  "module": "esm/index.js",
+  "files": ["esm", "lib", "src"],
+  "scripts": {
+    "build": "node ../../build-utils/babel-build.js",
+    "dev": "node ../../build-utils/babel-build.js --watch",
+    "test": "jest",
+    "lint": "eslint src tests",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@superset-ui/core": "*"
+  },
+  "peerDependencies": {
+    "react": "^17.0.0 || ^18.0.0",
+    "react-dom": "^17.0.0 || ^18.0.0"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^5.16.5",
+    "@testing-library/react": "^13.4.0",
+    "@types/jest": "^27.5.2",
+    "@types/react": "^17.0.52",
+    "jest": "^27.5.1",
+    "ts-jest": "^27.1.5",
+    "typescript": "^4.9.5"
+  },
+  "license": "Apache-2.0"
+}

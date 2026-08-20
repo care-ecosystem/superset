@@ -52,6 +52,8 @@ export type HandlebarsQueryFormData = QueryFormData &
     table_timestamp_format?: string;
     granularitySqla?: string;
     time_grain_sqla?: TimeGranularity;
+    show_comparison?: boolean;
+    comparison_metric?: string;
   };
 
 export type HandlebarsProps = HandlebarsStylesProps &
@@ -59,4 +61,6 @@ export type HandlebarsProps = HandlebarsStylesProps &
     data: TimeseriesDataRecord[];
     // add typing here for the props you pass in from transformProps.ts!
     formData: HandlebarsQueryFormData;
+    comparisonPct: number | null;
+    hasComparison: boolean;
   };

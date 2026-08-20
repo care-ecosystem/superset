@@ -57,6 +57,41 @@ const config: ControlPanelConfig = {
         [includeTimeControlSetItem],
         [showTotalsControlSetItem],
         ['adhoc_filters'],
+        [
+          {
+            name: 'show_comparison',
+            config: {
+              type: 'CheckboxControl',
+              label: t('Show % change vs previous period'),
+              default: false,
+              renderTrigger: true,
+              description: t(
+                'Shows the percentage change compared to the equivalent prior time period. Hidden automatically when no date filter, or an Advanced/Custom range, is selected.',
+              ),
+            },
+          },
+        ],
+        [
+          {
+            name: 'comparison_metric',
+            config: {
+              type: 'SelectControl',
+              label: t('Metric to compare'),
+              description: t('Which metric to compute the % change for'),
+              mapStateToProps: (state: any) => {
+                const chartMetrics = state.controls?.metrics?.value || [];
+                const choices = chartMetrics.map((m: any) => {
+                  // ad-hoc metrics are objects with a label; saved metrics are plain strings
+                  const key = typeof m === 'string' ? m : m.label || m.metric_name;
+                  return [key, key];
+                });
+                return { choices };
+              },
+              renderTrigger: true,
+              visibility: ({ controls }: any) => !!controls?.show_comparison?.value,
+            },
+          },
+        ]
       ],
     },
     {

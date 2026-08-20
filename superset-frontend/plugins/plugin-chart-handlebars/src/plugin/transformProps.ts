@@ -22,10 +22,29 @@ export default function transformProps(chartProps: ChartProps) {
   const { width, height, formData, queriesData } = chartProps;
   const data = queriesData[0].data as TimeseriesDataRecord[];
 
+  const showComparison = (formData as any).showComparison;
+  const comparisonMetric = (formData as any).comparisonMetric as string | undefined;
+
+  let comparisonPct: number | null = null;
+
+  if (showComparison && queriesData.length > 1 && data[0]) {
+    const priorData = queriesData[1].data as TimeseriesDataRecord[];
+    const metricKey = comparisonMetric || Object.keys(data[0])[0];
+
+    const current = data[0]?.[metricKey] as number | undefined;
+    const prior = priorData[0]?.[metricKey] as number | undefined;
+
+    if (current != null && prior != null && prior !== 0) {
+      comparisonPct = ((current - prior) / prior) * 100;
+    }
+  }
+
   return {
     width,
     height,
     data,
     formData,
+    comparisonPct,
+    hasComparison: comparisonPct !== null,
   };
 }

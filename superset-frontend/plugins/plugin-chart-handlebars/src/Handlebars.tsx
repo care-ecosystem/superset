@@ -30,7 +30,7 @@ const Styles = styled.div<HandlebarsStylesProps>`
 `;
 
 export default function Handlebars(props: HandlebarsProps) {
-  const { data, height, width, formData } = props;
+  const { data, height, width, formData, comparisonPct, hasComparison } = props;
   const styleTemplateSource = formData.styleTemplate
     ? `<style>${formData.styleTemplate}</style>`
     : '';
@@ -43,7 +43,10 @@ export default function Handlebars(props: HandlebarsProps) {
 
   return (
     <Styles ref={rootElem} height={height} width={width}>
-      <HandlebarsViewer data={{ data }} templateSource={templateSource} />
+      <HandlebarsViewer
+        data={{ data, comparisonPct, hasComparison }}
+        templateSource={templateSource}
+      />
     </Styles>
   );
 }

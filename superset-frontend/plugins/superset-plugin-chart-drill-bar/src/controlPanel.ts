@@ -30,7 +30,7 @@ const controlPanel: ControlPanelConfig = {
               description:
                 'Add columns in top-to-bottom drill order. ' +
                 'E.g. Continent → Country → State → City. ' +
-                'The chart starts at the first column and drills deeper on each click.',
+                'The chart starts at the first column and drills deeper on each click',
               multi: true,
               freeForm: false,
               mapStateToProps: (state: any) => ({

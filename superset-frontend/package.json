@@ -152,6 +152,7 @@
     "@superset-ui/plugin-chart-drill-bar": "file:./plugins/superset-plugin-chart-drill-bar",
     "@superset-ui/plugin-chart-drill-bar-horizontal": "file:./plugins/superset-plugin-chart-drill-bar-horizontal",
     "@superset-ui/plugin-chart-drill-pie": "file:./plugins/superset-plugin-chart-drill-pie",
+    "@superset-ui/plugin-chart-referral-flow": "file:./plugins/superset-plugin-chart-referral-flow",
     
     "@superset-ui/plugin-chart-echarts": "file:./plugins/plugin-chart-echarts",
     "@superset-ui/plugin-chart-handlebars": "file:./plugins/plugin-chart-handlebars",

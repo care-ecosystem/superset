@@ -139,6 +139,8 @@ Handlebars.registerHelper('multiply', (a: any, b: any) => {
   if (Number.isNaN(x) || Number.isNaN(y)) return '';
   return x * y;
 });
+Handlebars.registerHelper('gt', (a, b) => a > b);
+Handlebars.registerHelper('eq', (a, b) => a === b);
 
 Helpers.registerHelpers(Handlebars);
 HandlebarsGroupBy.register(Handlebars);
