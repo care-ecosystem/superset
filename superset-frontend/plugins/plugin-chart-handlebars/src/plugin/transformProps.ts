@@ -22,8 +22,13 @@ export default function transformProps(chartProps: ChartProps) {
   const { width, height, formData, queriesData } = chartProps;
   const data = queriesData[0].data as TimeseriesDataRecord[];
 
-  const showComparison = (formData as any).showComparison;
-  const comparisonMetric = (formData as any).comparisonMetric as string | undefined;
+  const showComparison = (formData as any).show_comparison;
+  const comparisonMetric = (formData as any).comparison_metric as string | undefined;
+
+  console.log('DEBUG showComparison:', showComparison);
+  console.log('DEBUG comparisonMetric:', comparisonMetric);
+  console.log('DEBUG queriesData.length:', queriesData.length);
+  console.log('DEBUG data[0]:', data[0]);
 
   let comparisonPct: number | null = null;
 
@@ -31,13 +36,23 @@ export default function transformProps(chartProps: ChartProps) {
     const priorData = queriesData[1].data as TimeseriesDataRecord[];
     const metricKey = comparisonMetric || Object.keys(data[0])[0];
 
+    console.log('DEBUG priorData[0]:', priorData[0]);
+    console.log('DEBUG metricKey:', metricKey);
+
     const current = data[0]?.[metricKey] as number | undefined;
     const prior = priorData[0]?.[metricKey] as number | undefined;
+
+    console.log('DEBUG current:', current, 'prior:', prior);
 
     if (current != null && prior != null && prior !== 0) {
       comparisonPct = ((current - prior) / prior) * 100;
     }
-  }
+  } else {
+  console.log('DEBUG: comparison block skipped entirely — check the condition above');
+}
+
+  console.log('DEBUG comparisonPct final:', comparisonPct);
+
 
   return {
     width,

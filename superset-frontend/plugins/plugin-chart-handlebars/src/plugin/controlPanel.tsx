@@ -48,6 +48,7 @@ const config: ControlPanelConfig = {
       expanded: true,
       controlSetRows: [
         [queryModeControlSetItem],
+        ['time_range'],
         [groupByControlSetItem],
         [metricsControlSetItem, allColumnsControlSetItem],
         [percentMetricsControlSetItem],

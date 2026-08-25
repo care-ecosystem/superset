@@ -100,7 +100,7 @@ export default function buildQuery(formData: QueryFormData) {
       },
     ];
 
-    if ((formData as any).showComparison) {
+    if ((formData as any).show_comparison) {
       const comparisonRange = getComparisonRange(formData.time_range as string);
       if (comparisonRange) {
         queries.push({
