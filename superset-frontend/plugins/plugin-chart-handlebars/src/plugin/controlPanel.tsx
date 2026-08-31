@@ -65,7 +65,6 @@ const config: ControlPanelConfig = {
               type: 'CheckboxControl',
               label: t('Show % change vs previous period'),
               default: false,
-              renderTrigger: true,
               description: t(
                 'Shows the percentage change compared to the equivalent prior time period. Hidden automatically when no date filter, or an Advanced/Custom range, is selected.',
               ),
@@ -88,7 +87,6 @@ const config: ControlPanelConfig = {
                 });
                 return { choices };
               },
-              renderTrigger: true,
               visibility: ({ controls }: any) => !!controls?.show_comparison?.value,
             },
           },

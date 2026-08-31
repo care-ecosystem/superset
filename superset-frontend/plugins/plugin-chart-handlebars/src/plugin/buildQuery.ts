@@ -92,6 +92,11 @@ export function getComparisonRange(timeRange?: string): string | null {
 }
 
 export default function buildQuery(formData: QueryFormData) {
+  // eslint-disable-next-line no-console
+  console.log('DEBUG buildQuery ALL formData keys:', Object.keys(formData));
+  // eslint-disable-next-line no-console
+  console.log('DEBUG buildQuery comparison-related keys:', Object.keys(formData).filter(k => k.toLowerCase().includes('comparison')));
+
   return buildQueryContext(formData, baseQueryObject => {
     const queries = [
       {
@@ -100,8 +105,33 @@ export default function buildQuery(formData: QueryFormData) {
       },
     ];
 
-    if ((formData as any).show_comparison) {
-      const comparisonRange = getComparisonRange(formData.time_range as string);
+    const showComparisonRaw = (formData as any).show_comparison;
+    const showComparison =
+      showComparisonRaw === true || showComparisonRaw === 'true';
+
+    if (showComparison) {
+      // Read time_range from the already-resolved baseQueryObject, not
+      // formData. On a dashboard, the native date filter is merged in via
+      // extra_form_data and ends up on baseQueryObject.time_range — it
+      // never touches formData.time_range (which stays whatever the
+      // chart's own static default is, e.g. "No filter") and it never
+      // touches the ad-hoc TEMPORAL_RANGE filter's val either (that stays
+      // "No filter" too, as a placeholder). baseQueryObject.time_range is
+      // therefore the one field that correctly reflects whichever source
+      // — the dashboard's date slicer, or the chart's own Time Range
+      // control — actually drove the main query's filtering.
+      // eslint-disable-next-line no-console
+      console.log('DEBUG baseQueryObject.time_range:', (baseQueryObject as any).time_range);
+      // eslint-disable-next-line no-console
+      console.log('DEBUG formData.time_range:', formData.time_range);
+
+      const effectiveTimeRange =
+        (baseQueryObject as any).time_range || (formData.time_range as string);
+      const comparisonRange = getComparisonRange(effectiveTimeRange);
+
+      // eslint-disable-next-line no-console
+      console.log('DEBUG comparisonRange:', comparisonRange);
+
       if (comparisonRange) {
         queries.push({
           ...baseQueryObject,
