@@ -100,6 +100,63 @@ HTML_SANITIZATION_SCHEMA_EXTENSIONS = {
     "tagNames": ["style"],
 }
 
+TALISMAN_ENABLED = True
+TALISMAN_CONFIG = {
+    "content_security_policy": {
+        "base-uri": ["'self'"],
+        "default-src": ["'self'"],
+        "img-src": [
+            "'self'",
+            "blob:",
+            "data:",
+            "https://apachesuperset.gateway.scarf.sh",
+            "https://static.scarf.sh/",
+            "https://cdn.brandfolder.io",
+            "ows.terrestris.de",
+            "https://cdn.document360.io",
+        ],
+        "worker-src": ["'self'", "blob:"],
+        "connect-src": [
+            "'self'",
+            "https://api.mapbox.com",
+            "https://events.mapbox.com",
+            "https://tile.openstreetmap.org",
+            "https://tile.osm.ch",
+            "https://basemaps.cartocdn.com",
+            "https://*.basemaps.cartocdn.com",
+            "https://tiles.openfreemap.org",
+            "https://*.maptiler.com",
+            "https://tiles.stadiamaps.com",
+            "https://tiles.versatiles.org",
+            "https://*.protomaps.com",
+            "https://*.maplibre.org",
+        ],
+        "object-src": ["'none'"],
+        "style-src": [
+            "'self'",
+            "'unsafe-inline'",
+            "https://fonts.googleapis.com",
+            "https://fonts.gstatic.com",
+            "https://use.typekit.net",
+            "https://use.typekit.com",
+        ],
+        "font-src": [
+            "'self'",
+            "https://fonts.googleapis.com",
+            "https://fonts.gstatic.com",
+            "https://use.typekit.net",
+            "https://use.typekit.com",
+        ],
+        "script-src": [
+            "'self'",
+            "'unsafe-inline'",
+            "'unsafe-eval'",
+            "'strict-dynamic'",
+        ],
+    },
+    "force_https": False,
+    "session_cookie_secure": False,
+}
 
 class CeleryConfig:
     broker_url = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_CELERY_DB}"
