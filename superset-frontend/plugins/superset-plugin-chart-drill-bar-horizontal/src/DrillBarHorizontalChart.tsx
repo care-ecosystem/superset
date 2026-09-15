@@ -1,16 +1,18 @@
 /**
  * src/DrillBarHorizontalChart.tsx
  *
- * Horizontal variant of the Drill-Down Bar Chart. Structurally identical to
- * the vertical version except the two scales swap roles:
- *   - groupScale (hierarchy labels) runs down the Y-axis, not across X
- *   - value scale (scaleLinear) runs across the X-axis, not up Y
- * Bars grow rightward from x=0 instead of upward from the bottom.
+ * Horizontal variant of the Drill-Down Bar Chart, styled as a "progress bar"
+ * list: a light gray pill-shaped track spans the full row width, a colored
+ * pill fills it proportionally to the value, and the value number sits in a
+ * fixed-position column to the right of the track (not hugging the bar's
+ * end) so all values line up in a column regardless of bar length. No
+ * gridlines or X-axis ticks; the Y-axis renders as plain department labels
+ * with no tick marks or axis line.
  */
 import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
-import { scaleBand, scaleLinear} from 'd3-scale';
+import { scaleBand, scaleLinear } from 'd3-scale';
 import { max } from 'd3-array';
-import { axisBottom, axisLeft } from 'd3-axis';
+import { axisLeft } from 'd3-axis';
 import { select } from 'd3-selection';
 import { format } from 'd3-format';
 import 'd3-transition';
@@ -26,14 +28,16 @@ interface TooltipState {
 }
 
 const TOP_MARGIN = 20;
-const RIGHT_MARGIN = 40;
-const BOTTOM_MARGIN = 40;
+const RIGHT_MARGIN = 56; // room for the value-number column, right of the track
+const BOTTOM_MARGIN = 12; // no X-axis, just a little breathing room
 const MIN_LEFT_MARGIN = 80;
 const MAX_LEFT_MARGIN = 220;
 
 const BREADCRUMB_HEIGHT = 36;
 const LEGEND_HEIGHT = 28;
 const MIN_GROUP_HEIGHT = 40; // minimum px height per hierarchy label group
+
+const TRACK_COLOR = '#eef0f3';
 
 const PALETTE = [
   '#4682DC',
@@ -76,14 +80,14 @@ export default function DrillBarHorizontalChart(props: DrillBarChartProps) {
     animationDuration,
     xAxisFontSize,
     yAxisFontSize,
+    legendFontSize,
+    valueFontSize,
+    barThickness,
     onDrillDown,
     onDrillUp,
   } = props;
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const scrollByAmount = useCallback((amount: number) => {
-    scrollContainerRef.current?.scrollBy({ top: amount, behavior: 'smooth' });
-  }, []);
 
   const [tooltip, setTooltip] = useState<TooltipState>({
     visible: false, x: 0, y: 0, groupLabel: '', metricLabel: '', value: 0,
@@ -95,16 +99,24 @@ export default function DrillBarHorizontalChart(props: DrillBarChartProps) {
     return Math.max(...data.map((d) => measureTextWidth(d.label, yAxisFontSize)));
   }, [data, yAxisFontSize]);
 
-  const leftMargin = Math.min(MAX_LEFT_MARGIN, Math.max(MIN_LEFT_MARGIN, Math.ceil(maxYLabelWidth) + 24));
+  const LABEL_GAP = 40;
+
+  const leftMargin = Math.min(MAX_LEFT_MARGIN, Math.max(MIN_LEFT_MARGIN, Math.ceil(maxYLabelWidth) + LABEL_GAP));
 
   const MARGIN = { top: TOP_MARGIN, right: RIGHT_MARGIN, bottom: BOTTOM_MARGIN, left: leftMargin };
 
   const chartHeightAvailable = height - BREADCRUMB_HEIGHT - LEGEND_HEIGHT;
 
   const innerWidth = Math.max(0, width - MARGIN.left - MARGIN.right);
+
   const availableHeight = Math.max(0, chartHeightAvailable - MARGIN.top - MARGIN.bottom);
-  const neededHeight = data.length * MIN_GROUP_HEIGHT;
+
+  const groupHeight = Math.max(MIN_GROUP_HEIGHT, metricLabels.length * (barThickness + 6));
+
+  const neededHeight = data.length * groupHeight;
+
   const innerHeight = Math.max(availableHeight, neededHeight);
+
   const svgHeight = innerHeight + MARGIN.top + MARGIN.bottom;
 
   const metricColor = useCallback(
@@ -116,7 +128,7 @@ export default function DrillBarHorizontalChart(props: DrillBarChartProps) {
     [barColorHover],
   );
 
-  // Outer scale: one band per hierarchy label, now running down the Y-axis
+  // Outer scale: one band per hierarchy label, running down the Y-axis
   const groupScale = scaleBand()
     .domain(data.map((d) => d.label))
     .range([0, innerHeight])
@@ -129,34 +141,28 @@ export default function DrillBarHorizontalChart(props: DrillBarChartProps) {
     .padding(0.15);
 
   const maxValue = max(data.flatMap((d) => d.values.map((v) => v.value))) ?? 0;
-  // Value scale now runs left-to-right across the X-axis
+  // Value scale drives how far each bar fills into the track; the track
+  // itself always spans the full innerWidth regardless of value.
   const xScale = scaleLinear()
     .domain([0, maxValue * 1.1])
-    .nice()
     .range([0, innerWidth]);
 
-  const xAxisRef = useRef<SVGGElement>(null);
+  // Only the Y-axis renders now — plain labels, no tick marks or axis line.
   const yAxisRef = useRef<SVGGElement>(null);
 
   useEffect(() => {
-    if (!xAxisRef.current || !yAxisRef.current) return;
+    if (!yAxisRef.current) return;
 
-    const xAxis = axisBottom(xScale).ticks(6).tickSizeOuter(0);
-    select(xAxisRef.current)
+    const yAxis = axisLeft(groupScale).tickSize(0);
+    const sel = select(yAxisRef.current)
       .transition()
       .duration(animationDuration)
-      .call(xAxis as any)
-      .selectAll('text')
-      .style('font-size', `${xAxisFontSize}px`);
+      .call(yAxis as any);
 
-    const yAxis = axisLeft(groupScale).tickSizeOuter(0);
-    select(yAxisRef.current)
-      .transition()
-      .duration(animationDuration)
-      .call(yAxis as any)
-      .selectAll('text')
-      .style('font-size', `${yAxisFontSize}px`);
-  }, [data, metricLabels, innerWidth, innerHeight, animationDuration, xAxisFontSize, yAxisFontSize]);
+    sel.selectAll('text').style('font-size', `${yAxisFontSize}px`).attr('dx', '-8px');;
+    // Hide the axis's own domain line — labels only, no ruler line.
+    select(yAxisRef.current).select('.domain').style('display', 'none');
+  }, [data, metricLabels, innerWidth, innerHeight, animationDuration, yAxisFontSize]);
 
   const handleMouseMove = useCallback(
     (e: React.MouseEvent<SVGRectElement>, groupLabel: string, mv: MetricValue) => {
@@ -197,7 +203,7 @@ export default function DrillBarHorizontalChart(props: DrillBarChartProps) {
         {metricLabels.map((ml, idx) => (
           <div key={ml} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: metricColor(idx) }} />
-            <span style={{ fontSize: 12, color: '#444' }}>{ml}</span>
+            <span style={{ fontSize: legendFontSize, color: '#444' }}>{ml}</span>
           </div>
         ))}
       </div>
@@ -227,32 +233,42 @@ export default function DrillBarHorizontalChart(props: DrillBarChartProps) {
       <div ref={scrollContainerRef} style={{ position: 'relative', overflowY: 'auto', overflowX: 'hidden', height: chartHeightAvailable }}>
         <svg width={width} height={svgHeight} style={{ display: 'block' }}>
           <g transform={`translate(${MARGIN.left},${MARGIN.top})`}>
-            {xScale.ticks(6).map((tick) => (
-              <line key={tick} x1={xScale(tick)} x2={xScale(tick)} y1={0} y2={innerHeight} stroke="#e8e8e8" strokeDasharray="4 2" />
-            ))}
-
             {data.map((datum) => {
               const gy = groupScale(datum.label) ?? 0;
               return (
                 <g key={datum.label} transform={`translate(0,${gy})`}>
                   {datum.values.map((mv, metricIdx) => {
                     const my = metricScale(mv.metricLabel) ?? 0;
-                    const mh = metricScale.bandwidth();
-                    const mw = xScale(mv.value);
+                    const mh = Math.min(metricScale.bandwidth(), barThickness);
+                    const trackY = my + (metricScale.bandwidth() - mh) / 2;
+                    const barWidth = Math.max(0, xScale(mv.value));
                     const key = `${datum.label}::${mv.metricLabel}`;
                     const isHovered = hoveredKey === key;
                     const fill = isHovered ? metricColorHover(metricIdx) : metricColor(metricIdx);
+                    const pillRadius = mh / 2;
+                    const cornerRadius = 6;
 
                     return (
                       <g key={key}>
+                        {/* Background track — always spans the full row width */}
                         <rect
                           x={0}
-                          y={my}
-                          width={Math.max(0, mw)}
+                          y={trackY}
+                          width={innerWidth}
                           height={mh}
+                          rx={cornerRadius}
+                          ry={cornerRadius}
+                          fill={TRACK_COLOR}
+                        />
+                        {/* Filled bar, proportional to value */}
+                        <rect
+                          x={0}
+                          y={trackY}
+                          width={barWidth}
+                          height={mh}
+                          rx={cornerRadius}
+                          ry={cornerRadius}
                           fill={fill}
-                          rx={3}
-                          ry={3}
                           style={{
                             cursor: canDrillFurther ? 'pointer' : 'default',
                             transition: `width ${animationDuration}ms ease, fill 120ms`,
@@ -263,8 +279,16 @@ export default function DrillBarHorizontalChart(props: DrillBarChartProps) {
                         >
                           <title>{`${datum.label} — ${mv.metricLabel}: ${fmt(mv.value)}`}</title>
                         </rect>
-                        {showLabels && mw > 24 && (
-                          <text x={mw + 5} y={my + mh / 2 + 4} fontSize={11} fill="#444" style={{ pointerEvents: 'none', userSelect: 'none' }}>
+                        {/* Value number — fixed column just past the end of the track,
+                            so every value lines up regardless of bar length. */}
+                        {showLabels && (
+                          <text
+                            x={innerWidth + 8}
+                            y={trackY + mh / 2 + valueFontSize / 3}
+                            fontSize={valueFontSize}
+                            fill="#333"
+                            style={{ pointerEvents: 'none', userSelect: 'none' }}
+                          >
                             {fmt(mv.value)}
                           </text>
                         )}
@@ -275,7 +299,7 @@ export default function DrillBarHorizontalChart(props: DrillBarChartProps) {
               );
             })}
 
-            <g ref={xAxisRef} transform={`translate(0,${innerHeight})`} />
+            {/* Y Axis — plain department labels, no tick marks or axis line */}
             <g ref={yAxisRef} />
 
             {data.length === 0 && (

@@ -13,6 +13,9 @@ export interface DrillBarFormData extends QueryFormData {
   showLabels: boolean;
   showTooltip: boolean;
   animationDuration: number;
+  legendFontSize: number;
+  valueFontSize: number;
+  barThickness: number;
 }
 
 export interface MetricValue {
@@ -51,6 +54,11 @@ export interface DrillBarChartProps {
   animationDuration: number;
   xAxisFontSize: number;
   yAxisFontSize: number;
+
+  legendFontSize: number;
+  valueFontSize: number;
+  barThickness: number;
+
   onDrillDown: (datum: BarDatum) => void;
   onDrillUp: (targetDepth: number) => void;
 }

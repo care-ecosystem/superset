@@ -191,6 +191,49 @@ const controlPanel: ControlPanelConfig = {
             },
           },
         ],
+        [
+          {
+            name: 'legendFontSize',
+            config: {
+              type: 'SliderControl',
+              label: 'Legend Font Size',
+              description: 'Font size of the legend labels.',
+              default: 12,
+              min: 8,
+              max: 30,
+              step: 1,
+              renderTrigger: true,
+            },
+          },
+          {
+            name: 'valueFontSize',
+            config: {
+              type: 'SliderControl',
+              label: 'Value Label Font Size',
+              description: 'Font size of the values displayed above bars.',
+              default: 11,
+              min: 8,
+              max: 30,
+              step: 1,
+              renderTrigger: true,
+            },
+          },
+        ],
+        [
+          {
+            name: 'barThickness',
+            config: {
+              type: 'SliderControl',
+              label: 'Bar Thickness',
+              description: 'Controls the width of all bars.',
+              default: 40,
+              min: 5,
+              max: 120,
+              step: 1,
+              renderTrigger: true,
+            },
+          },
+        ],
       ],
     },
 

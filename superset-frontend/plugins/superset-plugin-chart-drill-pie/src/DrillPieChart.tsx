@@ -34,9 +34,9 @@ const BREADCRUMB_HEIGHT = 36;
 const LEGEND_WIDTH = 160; // reserved on the right when legend is shown
 
 const PALETTE = [
-  '#4682DC', '#2E9E8F', '#E0954E', '#9B6BC7',
-  '#D4587A', '#5FA83D', '#C7A93E', '#4E9BC7',
-  '#7A6FF0', '#DA8F8F', '#57B894', '#C77DC6',
+  '#2F6DB5', '#1E8A7A', '#C97A28', '#7D59B5',
+  '#B84464', '#4D8F31', '#A98B22', '#3F84B0',
+  '#6458D9', '#C97777', '#3F9F84', '#A85CB0',
 ];
 
 function colorFor(index: number): string {
@@ -100,7 +100,7 @@ export default function DrillPieChart(props: DrillPieChartProps) {
   // more of a hole in the middle. Recalculates on every render, so drilling
   // into a new level (which changes `data`, and therefore `total` below)
   // keeps the ring geometry stable while the center label updates.
-  const innerRadius = radius * (Math.min(85, Math.max(0, innerRadiusPercent)) / 100);
+  const innerRadius = radius * (Math.min(92, Math.max(0, innerRadiusPercent)) / 100);
 
   // Sum of all currently-visible slices. Since `data` comes fresh from
   // transformProps on every drill click (new query result for that level),
@@ -295,8 +295,13 @@ export default function DrillPieChart(props: DrillPieChartProps) {
         {showLegend && (
           <div
             style={{
-              width: legendWidth, overflowY: 'auto', padding: '8px', display: 'flex',
-              flexDirection: 'column', gap: 6,
+              width: legendWidth,
+              overflowY: 'auto',
+              padding: '8px',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              gap: 6,
             }}
           >
             {data.map((d, idx) => (

@@ -89,6 +89,11 @@ export default function transformProps(chartProps: ChartProps): DrillBarChartPro
     animationDuration: Number(fd.animationDuration ?? 400),
     xAxisFontSize: Number(fd.xAxisFontSize ?? 12),
     yAxisFontSize: Number(fd.yAxisFontSize ?? 12),
+
+    legendFontSize: Number(fd.legendFontSize ?? 12),
+    valueFontSize: Number(fd.valueFontSize ?? 11),
+    barThickness: Number(fd.barThickness ?? 20),
+    
     onDrillDown,
     onDrillUp,
   };

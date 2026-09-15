@@ -39,12 +39,17 @@ interface TooltipState {
 // ── Margins (pixels) ──────────────────────────────────────────────────────────
 // const MARGIN = { top: 20, right: 20, bottom: 140, left: 100 };
 
+// const TOP_MARGIN = 20;
+// const RIGHT_MARGIN = 20;
+// const LEFT_MARGIN = 70;
+// const MIN_BOTTOM_MARGIN = 60;
+// const MAX_BOTTOM_MARGIN = 160;
+// const X_LABEL_ROTATION_DEG = 35;
+
 const TOP_MARGIN = 20;
 const RIGHT_MARGIN = 20;
-const LEFT_MARGIN = 70;
-const MIN_BOTTOM_MARGIN = 60;
-const MAX_BOTTOM_MARGIN = 160;
-const X_LABEL_ROTATION_DEG = 35;
+const LEFT_MARGIN = 20;
+const BOTTOM_MARGIN = 40;
 
 const BREADCRUMB_HEIGHT = 36; // px reserved at top for breadcrumb bar
 const LEGEND_HEIGHT = 28; // px reserved at top for legend row
@@ -94,6 +99,9 @@ export default function DrillBarChart(props: DrillBarChartProps) {
     animationDuration,
     xAxisFontSize,
     yAxisFontSize,
+    legendFontSize,
+    valueFontSize,
+    barThickness,
     onDrillDown,
     onDrillUp,
   } = props;
@@ -111,20 +119,22 @@ export default function DrillBarChart(props: DrillBarChartProps) {
   });
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
 
-  const maxXLabelWidth = useMemo(() => {
-    if (!data.length) return 0;
-    return Math.max(...data.map((d) => measureTextWidth(d.label, xAxisFontSize)));
-  }, [data, xAxisFontSize]);
+  // const maxXLabelWidth = useMemo(() => {
+  //   if (!data.length) return 0;
+  //   return Math.max(...data.map((d) => measureTextWidth(d.label, xAxisFontSize)));
+  // }, [data, xAxisFontSize]);
 
-  const bottomMargin = Math.min(
-      MAX_BOTTOM_MARGIN,
-      Math.max(
-        MIN_BOTTOM_MARGIN,
-        Math.ceil(maxXLabelWidth * Math.sin((X_LABEL_ROTATION_DEG * Math.PI) / 180)) + 30,
-      ),
-    );
+  // const bottomMargin = Math.min(
+  //     MAX_BOTTOM_MARGIN,
+  //     Math.max(
+  //       MIN_BOTTOM_MARGIN,
+  //       Math.ceil(maxXLabelWidth * Math.sin((X_LABEL_ROTATION_DEG * Math.PI) / 180)) + 30,
+  //     ),
+  //   );
 
-  const MARGIN = { top: TOP_MARGIN, right: RIGHT_MARGIN, bottom: bottomMargin, left: LEFT_MARGIN };
+  // const MARGIN = { top: TOP_MARGIN, right: RIGHT_MARGIN, bottom: bottomMargin, left: LEFT_MARGIN };
+
+  const MARGIN = { top: TOP_MARGIN, right: RIGHT_MARGIN, bottom: BOTTOM_MARGIN, left: LEFT_MARGIN };
 
   const SCROLLBAR_RESERVE = 16; // reserve space so the native horizontal scrollbar isn't clipped
 // Derived sizes
@@ -164,7 +174,13 @@ export default function DrillBarChart(props: DrillBarChartProps) {
   const metricScale = scaleBand()
     .domain(metricLabels)
     .range([0, groupScale.bandwidth()])
-    .padding(0.15);
+    .paddingInner(0.02)
+    .padding(0.1);
+
+  // Actual rendered bar width — capped by user's Bar Thickness setting,
+  // but never wider than the slot metricScale gives it. Centered within
+  // that slot so bars stay evenly spaced regardless of thickness.
+  const barWidth = Math.min(metricScale.bandwidth(), barThickness);
 
   const maxValue =
     max(data.flatMap((d) => d.values.map((v) => v.value))) ?? 0;
@@ -173,34 +189,62 @@ export default function DrillBarChart(props: DrillBarChartProps) {
     .nice()
     .range([innerHeight, 0]);
 
-  // ── Draw / update axes via D3 (these modify DOM nodes owned by refs, not React) ─
+  // // ── Draw / update axes via D3 (these modify DOM nodes owned by refs, not React) ─
+  // const xAxisRef = useRef<SVGGElement>(null);
+  // const yAxisRef = useRef<SVGGElement>(null);
+
+  // useEffect(() => {
+  //   if (!xAxisRef.current || !yAxisRef.current) return;
+
   const xAxisRef = useRef<SVGGElement>(null);
-  const yAxisRef = useRef<SVGGElement>(null);
 
   useEffect(() => {
-    if (!xAxisRef.current || !yAxisRef.current) return;
+    if (!xAxisRef.current) return;
 
-    // X axis (one tick per hierarchy label, not per individual bar)
+  
+
+    // // X axis (one tick per hierarchy label, not per individual bar)
+    // const xAxis = axisBottom(groupScale).tickSizeOuter(0);
+    // select(xAxisRef.current)
+    //   .transition()
+    //   .duration(animationDuration)
+    //   .call(xAxis as any)
+    //   .selectAll('text')
+    //   .style('text-anchor', 'end')
+    //   .attr('dx', '-0.5em')
+    //   .attr('dy', '0.15em')
+    //   .attr('transform', `rotate(-${X_LABEL_ROTATION_DEG})`)
+    //   .style('font-size', `${xAxisFontSize}px`);
+
     const xAxis = axisBottom(groupScale).tickSizeOuter(0);
-    select(xAxisRef.current)
+    const axisSelection = select(xAxisRef.current);
+
+    axisSelection
       .transition()
       .duration(animationDuration)
-      .call(xAxis as any)
+      .call(xAxis as any);
+
+    axisSelection
+      .select('.domain')
+      .attr('stroke', '#e8e8e8')
+      .attr('stroke-width', 1);
+
+    axisSelection
       .selectAll('text')
-      .style('text-anchor', 'end')
-      .attr('dx', '-0.5em')
-      .attr('dy', '0.15em')
-      .attr('transform', `rotate(-${X_LABEL_ROTATION_DEG})`)
+      .style('text-anchor', 'middle')
+      .attr('dx', '0')
+      .attr('dy', '0.9em')
+      .attr('transform', 'rotate(0)')
       .style('font-size', `${xAxisFontSize}px`);
 
-    // Y axis
-    const yAxis = axisLeft(yScale).ticks(6).tickSizeOuter(0);
-    select(yAxisRef.current)
-      .transition()
-      .duration(animationDuration)
-      .call(yAxis as any)
-      .selectAll('text')
-      .style('font-size', `${yAxisFontSize}px`);
+    // // Y axis
+    // const yAxis = axisLeft(yScale).ticks(6).tickSizeOuter(0);
+    // select(yAxisRef.current)
+    //   .transition()
+    //   .duration(animationDuration)
+    //   .call(yAxis as any)
+    //   .selectAll('text')
+    //   .style('font-size', `${yAxisFontSize}px`);
   }, [data, metricLabels, innerWidth, innerHeight, animationDuration, xAxisFontSize, yAxisFontSize]);
 
   // ── Tooltip handlers ───────────────────────────────────────────────────────
@@ -286,7 +330,7 @@ export default function DrillBarChart(props: DrillBarChartProps) {
                 background: metricColor(idx),
               }}
             />
-            <span style={{ fontSize: 12, color: '#444' }}>{ml}</span>
+            <span style={{ fontSize: legendFontSize, color: '#444' }}>{ml}</span>
           </div>
         ))}
       </div>
@@ -372,8 +416,9 @@ export default function DrillBarChart(props: DrillBarChartProps) {
               return (
                 <g key={datum.label} transform={`translate(${gx},0)`}>
                   {datum.values.map((mv, metricIdx) => {
-                    const mx = metricScale(mv.metricLabel) ?? 0;
-                    const mw = metricScale.bandwidth();
+                    const slotX = metricScale(mv.metricLabel) ?? 0;
+                    const mw = barWidth;
+                    const mx = slotX + (metricScale.bandwidth() - mw) / 2;
                     const mh = innerHeight - yScale(mv.value);
                     const my = yScale(mv.value);
                     const key = `${datum.label}::${mv.metricLabel}`;
@@ -409,8 +454,8 @@ export default function DrillBarChart(props: DrillBarChartProps) {
                             x={mx + mw / 2}
                             y={my - 5}
                             textAnchor="middle"
-                            fontSize={11}
-                            fill={fill}
+                            fontSize={valueFontSize}
+                            fill="#333"
                             style={{ pointerEvents: 'none', userSelect: 'none' }}
                           >
                             {fmt(mv.value)}
@@ -429,18 +474,20 @@ export default function DrillBarChart(props: DrillBarChartProps) {
               transform={`translate(0,${innerHeight})`}
             />
 
+            {/* Y Axis — hidden per design (no tick numbers, no axis label) */}
             {/* Y Axis */}
-            <g ref={yAxisRef} />
+            {/* <g ref={yAxisRef} /> */}
 
             {/* Y Axis label */}
-            <text
+            {/* <text
               transform={`rotate(-90) translate(${-innerHeight / 2}, ${-MARGIN.left + 14})`}
               textAnchor="middle"
               fontSize={12}
               fill="#666"
             >
               Value
-            </text>
+            </text> */}
+            
 
 
             {/* Empty state */}

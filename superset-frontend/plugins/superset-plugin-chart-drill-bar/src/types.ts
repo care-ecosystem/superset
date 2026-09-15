@@ -23,6 +23,9 @@ export interface DrillBarFormData extends QueryFormData {
   showTooltip: boolean;
   /** Animation duration in milliseconds */
   animationDuration: number;
+  legendFontSize: number;
+  valueFontSize: number;
+  barThickness: number;
 }
 
 // ─── A single metric's value within a bar group ───────────────────────────────
@@ -75,6 +78,9 @@ export interface DrillBarChartProps {
   animationDuration: number;
   xAxisFontSize: number;
   yAxisFontSize: number;
+  legendFontSize: number;
+  valueFontSize: number;
+  barThickness: number;
   onDrillDown: (datum: BarDatum) => void;
   onDrillUp: (targetDepth: number) => void;
 }
