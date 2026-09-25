@@ -93,6 +93,7 @@ import DrillBarChartPlugin from '@superset-ui/plugin-chart-drill-bar';
 import DrillBarHorizontalChartPlugin from '@superset-ui/plugin-chart-drill-bar-horizontal';
 import DrillPieChartPlugin from '@superset-ui/plugin-chart-drill-pie';
 import ReferralFlowTablePlugin from '@superset-ui/plugin-chart-referral-flow';
+import PivotTablePlugin from '@superset-ui/plugin-chart-custom-pivot-table';
 
 export default class MainPreset extends Preset {
   constructor() {
@@ -206,6 +207,7 @@ export default class MainPreset extends Preset {
         new DrillBarHorizontalChartPlugin().configure({ key: 'drill_bar_horizontal' }),
         new DrillPieChartPlugin().configure({ key: 'drill_pie' }),
         new ReferralFlowTablePlugin().configure({ key: 'referral_flow_table' }),
+        new PivotTablePlugin().configure({ key: 'custom_pivot_table' }),
         
         new CartodiagramPlugin({
           defaultLayers: [
