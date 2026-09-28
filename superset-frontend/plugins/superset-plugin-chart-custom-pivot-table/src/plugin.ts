@@ -14,7 +14,7 @@ const metadata = new ChartMetadata({
   category: 'Table',
 });
 
-export default class PivotTablePlugin extends ChartPlugin
+export default class PivotTablePlugin extends ChartPlugin<
   Record<string, unknown>,
   ChartDataResponseResult
 > {
