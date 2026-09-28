@@ -33,6 +33,7 @@ export default function buildQuery(formData: QueryFormData) {
     sortByMetric,
     sortDesc = true,
     cellLimit,
+    columnOrderColumn,
   } = formData as any;
 
   if (!rows.length && !columns.length) {
@@ -42,7 +43,8 @@ export default function buildQuery(formData: QueryFormData) {
     throw new Error('Pivot Table: at least one metric is required.');
   }
 
-  const groupby = dedupeColumns([...rows, ...columns]);
+  const orderCol = Array.isArray(columnOrderColumn) ? columnOrderColumn[0] : columnOrderColumn;
+  const groupby = dedupeColumns([...rows, ...columns, ...(orderCol ? [orderCol] : [])]);
 
   return buildQueryContext(formData, (baseQuery: QueryObject) => {
     const sortMetric =

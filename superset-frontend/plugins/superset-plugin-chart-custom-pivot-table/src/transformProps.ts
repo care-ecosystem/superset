@@ -18,6 +18,7 @@ import {
   HeaderCell,
   ColumnLeaf,
   BodyRow,
+  DEFAULT_METRIC_COLOR,
 } from './types';
 
 const EMPTY = '(empty)';
@@ -131,6 +132,13 @@ export default function transformProps(chartProps: ChartProps): PivotTableProps 
   const rowTupleMap = new Map<string, string[]>();
   const colTupleMap = new Map<string, string[]>();
 
+  const orderColRaw = Array.isArray(fd.columnOrderColumn)
+    ? fd.columnOrderColumn[0]
+    : fd.columnOrderColumn;
+  const orderColLabel: string | null = orderColRaw ? getColumnLabel(orderColRaw) : null;
+  const columnOrderDesc: boolean = fd.columnOrderDesc ?? false;
+  const colOrderMap = new Map<string, number>();
+
   rawData.forEach((row) => {
     const rTuple = rowDimLabels.map((d) => String(row[d] ?? EMPTY));
     const cTuple = colDimLabels.map((d) => String(row[d] ?? EMPTY));
@@ -138,6 +146,14 @@ export default function transformProps(chartProps: ChartProps): PivotTableProps 
     const cKey = cTuple.join(KEY_SEP);
     if (!rowTupleMap.has(rKey)) rowTupleMap.set(rKey, rTuple);
     if (!colTupleMap.has(cKey)) colTupleMap.set(cKey, cTuple);
+
+    if (orderColLabel) {
+      const ov = Number(row[orderColLabel]);
+      if (!Number.isNaN(ov)) {
+        const prev = colOrderMap.get(cKey);
+        if (prev === undefined || ov < prev) colOrderMap.set(cKey, ov);
+      }
+    }
 
     const key = `${rKey}||${cKey}`;
     if (!cellAccum.has(key)) cellAccum.set(key, {});
@@ -174,7 +190,13 @@ export default function transformProps(chartProps: ChartProps): PivotTableProps 
 
   const columnSortMetric: string | null = fd.columnSortMetric ?? null;
   const columnSortDesc: boolean = fd.columnSortDesc ?? false;
-  if (columnSortMetric && metricLabels.includes(columnSortMetric)) {
+  if (orderColLabel && colOrderMap.size > 0) {
+    colTuples = [...colTuples].sort((a, b) => {
+      const av = colOrderMap.get(a.join(KEY_SEP)) ?? Number.MAX_SAFE_INTEGER;
+      const bv = colOrderMap.get(b.join(KEY_SEP)) ?? Number.MAX_SAFE_INTEGER;
+      return columnOrderDesc ? bv - av : av - bv;
+    });
+  } else if (columnSortMetric && metricLabels.includes(columnSortMetric)) {
     const totals = new Map<string, number>();
     colTuples.forEach((cTuple) => {
       let sum = 0;
@@ -348,6 +370,13 @@ export default function transformProps(chartProps: ChartProps): PivotTableProps 
     });
   }
 
+  if (finalColumnLeaves !== columnLeaves) {
+    columnHeaderRows = buildHeaderRows(
+      finalColumnLeaves,
+      applyMetricsOn === 'columns' ? colDimLabels.length + 1 : colDimLabels.length,
+    );
+  }
+
   // ── Grand totals ──────────────────────────────────────────────────────────
   let grandTotalRow: BodyRow | null = null;
   if (showRowsTotal) {
@@ -401,7 +430,20 @@ export default function transformProps(chartProps: ChartProps): PivotTableProps 
     }
   }
 
-  const metricColors: MetricColorMap = fd.metricColors ?? {};
+  const toCss = (c: any, fallback: string): string => {
+    if (!c) return fallback;
+    if (typeof c === 'string') return c;
+    return `rgba(${c.r},${c.g},${c.b},${c.a ?? 1})`;
+  };
+  const metricColors: MetricColorMap = {};
+  metricLabels.forEach((ml, i) => {
+    metricColors[ml] = {
+      headerBg: toCss(fd[`metric${i}HeaderBg`], DEFAULT_METRIC_COLOR.headerBg),
+      headerText: toCss(fd[`metric${i}HeaderText`], DEFAULT_METRIC_COLOR.headerText),
+      valueBg: toCss(fd[`metric${i}ValueBg`], DEFAULT_METRIC_COLOR.valueBg),
+      valueText: toCss(fd[`metric${i}ValueText`], DEFAULT_METRIC_COLOR.valueText),
+    };
+  });
 
   return {
     width,
@@ -432,5 +474,7 @@ export default function transformProps(chartProps: ChartProps): PivotTableProps 
       italic: fd.rowsItalic ?? false,
     },
     metricColors,
+    metricHeaderLevel:
+      applyMetricsOn === 'columns' ? (combineMetrics ? 0 : colDimLabels.length) : -1,
   };
 }

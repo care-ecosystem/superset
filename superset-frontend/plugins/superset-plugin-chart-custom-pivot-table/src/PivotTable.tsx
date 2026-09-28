@@ -7,7 +7,19 @@
  * height) at render time.
  */
 import React from 'react';
-import { PivotTableProps, TextStyle, MetricColorMap, DEFAULT_METRIC_COLOR } from './types';
+import {
+  PivotTableProps,
+  TextStyle,
+  MetricColorMap,
+  HeaderCell,
+  DEFAULT_METRIC_COLOR,
+} from './types';
+
+const FONT_STACK = '"Inter", "Segoe UI", system-ui, -apple-system, sans-serif';
+const ROW_LABEL_FONT = 'Georgia, "Times New Roman", serif';
+const GROUP_ACCENTS = ['#3b82f6', '#14b8a6', '#f59e0b', '#8b5cf6', '#ef4444', '#22c55e'];
+const GROUP_DIVIDER = '2px solid #cbd5e1';
+const ROW_DIVIDER = '1px solid #eef0f3';
 
 const fmt = (v: number | null): string => (v == null ? '' : v.toLocaleString());
 
@@ -28,7 +40,6 @@ export default function PivotTable(props: PivotTableProps) {
     width,
     height,
     rowDimLabels,
-    colDimLabels,
     applyMetricsOn,
     columnLeaves,
     columnHeaderRows,
@@ -40,52 +51,77 @@ export default function PivotTable(props: PivotTableProps) {
     columnsStyle,
     rowsStyle,
     metricColors,
+    metricHeaderLevel,
   } = props;
 
   const rowHeaderLevels = rowDimLabels.length + (applyMetricsOn === 'rows' ? 1 : 0);
-  const rowHeaderCornerLabels =
-    applyMetricsOn === 'rows' ? [...rowDimLabels, 'Metric'] : rowDimLabels;
+  const cornerLabels = applyMetricsOn === 'rows' ? [...rowDimLabels, 'Metric'] : rowDimLabels;
+  const headerRowsToRender: HeaderCell[][] = columnHeaderRows.length ? columnHeaderRows : [[]];
 
-  // Which header level (if any) in columnHeaderRows represents the metric
-  // name row, so we can apply metricsStyle + per-metric color there instead
-  // of the generic columnsStyle.
-  const metricLevelIndex =
-    applyMetricsOn === 'columns'
-      ? (props as any).combineMetricsLevel0 // not passed; derive below instead
-      : -1;
+  // Work out which column-group each leaf column belongs to, based on the
+  // outermost header row, so we can draw dividers between groups.
+  const leafGroupIndex: number[] = [];
+  const leafIsGroupStart: boolean[] = [];
+  let leafCursor = 0;
+  (columnHeaderRows[0] ?? []).forEach((cell, gi) => {
+    for (let k = 0; k < cell.span; k += 1) {
+      leafGroupIndex[leafCursor] = gi;
+      leafIsGroupStart[leafCursor] = k === 0;
+      leafCursor += 1;
+    }
+  });
+
+  const baseHeader: React.CSSProperties = {
+    padding: '10px 10px',
+    textTransform: 'uppercase',
+    letterSpacing: '0.04em',
+    textAlign: 'center',
+    verticalAlign: 'middle',
+    borderBottom: '1px solid #e5e7eb',
+  };
 
   return (
-    <div style={{ width, height, overflow: 'auto', fontFamily: 'sans-serif' }}>
-      <table style={{ borderCollapse: 'collapse', minWidth: '100%' }}>
+    <div
+      style={{
+        width,
+        height,
+        overflow: 'auto',
+        fontFamily: FONT_STACK,
+        background: '#fff',
+      }}
+    >
+      <style>{`.pvt-custom-row:hover td { filter: brightness(0.97); }`}</style>
+      <table
+        style={{
+          borderCollapse: 'separate',
+          borderSpacing: 0,
+          width: '100%',
+          fontVariantNumeric: 'tabular-nums',
+        }}
+      >
         <thead>
-          {columnHeaderRows.map((levelCells, levelIdx) => {
-            // The metric-name level is whichever level's cell labels are all
-            // metric labels (columnLeaves' metricLabel) — safer to detect via
-            // columnLeaves directly rather than positional assumption, since
-            // "Combine metrics" changes whether it's level 0 or the last one.
-            const isMetricLevel =
-              applyMetricsOn === 'columns' &&
-              columnLeaves.length > 0 &&
-              (() => {
-                const metricLabelsSet = new Set(columnLeaves.map((l) => l.metricLabel));
-                return levelCells.every((c) => metricLabelsSet.has(c.label));
-              })();
-
+          {headerRowsToRender.map((levelCells, levelIdx) => {
+            const isMetricLevel = levelIdx === metricHeaderLevel;
+            let cellCursor = 0;
             return (
               <tr key={levelIdx}>
                 {levelIdx === 0 &&
-                  rowHeaderCornerLabels.map((label, i) => (
+                  cornerLabels.map((label, i) => (
                     <th
                       key={`corner-${i}`}
-                      rowSpan={columnHeaderRows.length || 1}
+                      rowSpan={headerRowsToRender.length}
                       style={{
+                        ...baseHeader,
                         ...textStyleCSS(rowsStyle),
-                        background: '#f7f8fa',
-                        border: '1px solid #e2e4e8',
-                        padding: '4px 8px',
-                        position: 'sticky',
+                        fontWeight: 700,
+                        textAlign: 'left',
+                        color: '#64748b',
+                        background: '#fff',
+                        borderBottom: '2px solid #e2e8f0',
+                        padding: '10px 12px',
+                        position: i === 0 ? 'sticky' : 'static',
                         left: 0,
-                        zIndex: 2,
+                        zIndex: 3,
                       }}
                     >
                       {label}
@@ -93,23 +129,48 @@ export default function PivotTable(props: PivotTableProps) {
                   ))}
 
                 {levelCells.map((cell, ci) => {
-                  const c = isMetricLevel ? metricColor(metricColors, cell.label) : null;
-                  const style = isMetricLevel
-                    ? {
-                        ...textStyleCSS(metricsStyle),
-                        background: c!.headerBg,
-                        color: c!.headerText,
-                      }
-                    : {
-                        ...textStyleCSS(columnsStyle),
-                        background: '#f7f8fa',
-                        color: '#333',
-                      };
+                  const startIdx = cellCursor;
+                  cellCursor += cell.span;
+                  const gi = leafGroupIndex[startIdx] ?? 0;
+                  const accent = GROUP_ACCENTS[gi % GROUP_ACCENTS.length];
+                  const groupStart = leafIsGroupStart[startIdx];
+                  const isGroupLevel = levelIdx === 0 && !isMetricLevel;
+
+                  let style: React.CSSProperties;
+                  if (isMetricLevel) {
+                    const c = metricColor(metricColors, cell.label);
+                    style = {
+                      ...baseHeader,
+                      ...textStyleCSS(metricsStyle),
+                      background: c.headerBg,
+                      color: c.headerText,
+                      borderBottom: '2px solid #e2e8f0',
+                    };
+                  } else if (isGroupLevel) {
+                    style = {
+                      ...baseHeader,
+                      ...textStyleCSS(columnsStyle),
+                      background: '#fff',
+                      color: '#0f172a',
+                      borderBottom: `3px solid ${accent}`,
+                    };
+                  } else {
+                    style = {
+                      ...baseHeader,
+                      ...textStyleCSS(columnsStyle),
+                      background: '#fff',
+                      color: '#475569',
+                    };
+                  }
+
                   return (
                     <th
                       key={ci}
                       colSpan={cell.span}
-                      style={{ ...style, border: '1px solid #e2e4e8', padding: '4px 8px', textAlign: 'center' }}
+                      style={{
+                        ...style,
+                        borderLeft: groupStart ? GROUP_DIVIDER : 'none',
+                      }}
                     >
                       {cell.label}
                     </th>
@@ -118,12 +179,14 @@ export default function PivotTable(props: PivotTableProps) {
 
                 {levelIdx === 0 && columnGrandTotals && (
                   <th
-                    rowSpan={columnHeaderRows.length || 1}
+                    rowSpan={headerRowsToRender.length}
                     style={{
+                      ...baseHeader,
                       ...textStyleCSS(columnsStyle),
-                      background: '#eef0f3',
-                      border: '1px solid #e2e4e8',
-                      padding: '4px 8px',
+                      color: '#0f172a',
+                      background: '#f8fafc',
+                      borderLeft: GROUP_DIVIDER,
+                      borderBottom: '2px solid #e2e8f0',
                     }}
                   >
                     Total
@@ -135,78 +198,101 @@ export default function PivotTable(props: PivotTableProps) {
         </thead>
 
         <tbody>
-          {bodyRows.map((row) => (
-            <tr key={row.key} style={{ height: rowHeight }}>
-              {row.isSubtotal ? (
-                <td
-                  colSpan={rowHeaderLevels}
-                  style={{
-                    ...textStyleCSS(rowsStyle),
-                    fontWeight: 700,
-                    background: '#f4f5f7',
-                    border: '1px solid #e2e4e8',
-                    padding: '4px 8px',
-                    position: 'sticky',
-                    left: 0,
-                  }}
-                >
-                  {row.rowHeaderCells[0]?.label}
-                </td>
-              ) : (
-                row.rowHeaderCells.map((cell, ci) =>
-                  cell ? (
-                    <td
-                      key={ci}
-                      rowSpan={cell.span}
-                      style={{
-                        ...textStyleCSS(rowsStyle),
-                        border: '1px solid #e2e4e8',
-                        padding: '4px 8px',
-                        background: '#fff',
-                        position: 'sticky',
-                        left: 0,
-                      }}
-                    >
-                      {cell.label}
-                    </td>
-                  ) : null,
-                )
-              )}
-
-              {columnLeaves.map((leaf) => {
-                const c = metricColor(metricColors, leaf.metricLabel);
-                return (
+          {bodyRows.map((row) => {
+            const rowMetric =
+              applyMetricsOn === 'rows'
+                ? row.rowHeaderCells[rowHeaderLevels - 1]?.label
+                : undefined;
+            return (
+              <tr key={row.key} className="pvt-custom-row" style={{ height: rowHeight }}>
+                {row.isSubtotal ? (
                   <td
-                    key={leaf.key}
+                    colSpan={rowHeaderLevels}
                     style={{
-                      border: '1px solid #eceef1',
-                      padding: '4px 10px',
-                      textAlign: 'right',
-                      background: row.isSubtotal ? '#f4f5f7' : c.valueBg,
-                      color: row.isSubtotal ? '#333' : c.valueText,
-                      fontWeight: row.isSubtotal ? 700 : 400,
+                      ...textStyleCSS(rowsStyle),
+                      fontFamily: ROW_LABEL_FONT,
+                      fontWeight: 700,
+                      color: '#0f172a',
+                      background: '#f8fafc',
+                      borderBottom: ROW_DIVIDER,
+                      padding: '8px 12px',
+                      position: 'sticky',
+                      left: 0,
                     }}
                   >
-                    {fmt(row.values[leaf.key])}
+                    {row.rowHeaderCells[0]?.label}
                   </td>
-                );
-              })}
+                ) : (
+                  row.rowHeaderCells.map((cell, ci) => {
+                    if (!cell) return null;
+                    const isMetricRowCell =
+                      applyMetricsOn === 'rows' && ci === rowHeaderLevels - 1;
+                    const mc = isMetricRowCell ? metricColor(metricColors, cell.label) : null;
+                    return (
+                      <td
+                        key={ci}
+                        rowSpan={cell.span}
+                        style={{
+                          ...(isMetricRowCell
+                            ? { ...textStyleCSS(metricsStyle), background: mc!.headerBg, color: mc!.headerText, fontFamily: FONT_STACK }
+                            : {
+                                ...textStyleCSS(rowsStyle),
+                                fontFamily: ROW_LABEL_FONT,
+                                color: '#0f172a',
+                                background: '#fff',
+                              }),
+                          padding: '8px 12px',
+                          borderBottom: ROW_DIVIDER,
+                          verticalAlign: 'middle',
+                          ...(ci === 0 ? { position: 'sticky', left: 0, zIndex: 1 } : {}),
+                        }}
+                      >
+                        {cell.label}
+                      </td>
+                    );
+                  })
+                )}
 
-              {columnGrandTotals && (
-                <td
-                  style={{
-                    border: '1px solid #eceef1',
-                    padding: '4px 10px',
-                    textAlign: 'right',
-                    fontWeight: 700,
-                    background: '#eef0f3',
-                  }}
-                >
-                  {fmt(columnGrandTotals[row.key] ?? null)}
-                </td>
-              )}
-            </tr>
-          ))}
+                {columnLeaves.map((leaf, li) => {
+                  const c = metricColor(metricColors, rowMetric ?? leaf.metricLabel);
+                  const v = row.values[leaf.key];
+                  return (
+                    <td
+                      key={leaf.key}
+                      style={{
+                        padding: '8px 12px',
+                        textAlign: 'right',
+                        fontSize: 13,
+                        borderBottom: ROW_DIVIDER,
+                        borderLeft: leafIsGroupStart[li] ? GROUP_DIVIDER : 'none',
+                        background: row.isSubtotal ? '#f8fafc' : c.valueBg,
+                        color: row.isSubtotal ? '#0f172a' : c.valueText,
+                        fontWeight: row.isSubtotal ? 700 : 500,
+                      }}
+                    >
+                      <span style={{ opacity: v === 0 ? 0.4 : 1 }}>{fmt(v)}</span>
+                    </td>
+                  );
+                })}
+
+                {columnGrandTotals && (
+                  <td
+                    style={{
+                      padding: '8px 12px',
+                      textAlign: 'right',
+                      fontSize: 13,
+                      fontWeight: 700,
+                      background: '#f8fafc',
+                      borderBottom: ROW_DIVIDER,
+                      borderLeft: GROUP_DIVIDER,
+                    }}
+                  >
+                    {fmt(columnGrandTotals[row.key] ?? null)}
+                  </td>
+                )}
+              </tr>
+            );
+          })}
 
           {grandTotalRow && (
             <tr style={{ height: rowHeight }}>
@@ -214,25 +300,29 @@ export default function PivotTable(props: PivotTableProps) {
                 colSpan={rowHeaderLevels}
                 style={{
                   ...textStyleCSS(rowsStyle),
+                  fontFamily: ROW_LABEL_FONT,
                   fontWeight: 700,
-                  background: '#eef0f3',
-                  border: '1px solid #e2e4e8',
-                  padding: '4px 8px',
+                  color: '#0f172a',
+                  background: '#f1f5f9',
+                  borderTop: '2px solid #cbd5e1',
+                  padding: '8px 12px',
                   position: 'sticky',
                   left: 0,
                 }}
               >
                 {grandTotalRow.rowHeaderCells[0]?.label}
               </td>
-              {columnLeaves.map((leaf) => (
+              {columnLeaves.map((leaf, li) => (
                 <td
                   key={leaf.key}
                   style={{
-                    border: '1px solid #e2e4e8',
-                    padding: '4px 10px',
+                    padding: '8px 12px',
                     textAlign: 'right',
+                    fontSize: 13,
                     fontWeight: 700,
-                    background: '#eef0f3',
+                    background: '#f1f5f9',
+                    borderTop: '2px solid #cbd5e1',
+                    borderLeft: leafIsGroupStart[li] ? GROUP_DIVIDER : 'none',
                   }}
                 >
                   {fmt(grandTotalRow.values[leaf.key])}
@@ -241,11 +331,13 @@ export default function PivotTable(props: PivotTableProps) {
               {columnGrandTotals && (
                 <td
                   style={{
-                    border: '1px solid #e2e4e8',
-                    padding: '4px 10px',
+                    padding: '8px 12px',
                     textAlign: 'right',
+                    fontSize: 13,
                     fontWeight: 700,
-                    background: '#dfe2e7',
+                    background: '#e2e8f0',
+                    borderTop: '2px solid #cbd5e1',
+                    borderLeft: GROUP_DIVIDER,
                   }}
                 >
                   {fmt(columnGrandTotals['grand-total-row'] ?? null)}
@@ -256,7 +348,10 @@ export default function PivotTable(props: PivotTableProps) {
 
           {bodyRows.length === 0 && (
             <tr>
-              <td colSpan={rowHeaderLevels + columnLeaves.length + (columnGrandTotals ? 1 : 0)} style={{ padding: 20, textAlign: 'center', color: '#aaa' }}>
+              <td
+                colSpan={rowHeaderLevels + columnLeaves.length + (columnGrandTotals ? 1 : 0)}
+                style={{ padding: 24, textAlign: 'center', color: '#94a3b8' }}
+              >
                 No data available for this selection.
               </td>
             </tr>

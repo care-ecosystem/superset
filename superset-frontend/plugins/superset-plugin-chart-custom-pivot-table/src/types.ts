@@ -13,10 +13,10 @@ export interface MetricColorConfig {
 export type MetricColorMap = Record<string, MetricColorConfig>;
 
 export const DEFAULT_METRIC_COLOR: MetricColorConfig = {
-  headerBg: '#f7f8fa',
-  headerText: '#333333',
-  valueBg: '#ffffff',
-  valueText: '#222222',
+  headerBg: 'rgba(241,245,249,1)',
+  headerText: 'rgba(51,65,85,1)',
+  valueBg: 'rgba(255,255,255,1)',
+  valueText: 'rgba(30,41,59,1)',
 };
 
 // ── Text style for one "role" (metrics / columns / rows) ───────────────────
@@ -106,5 +106,6 @@ export interface PivotTableProps {
   metricsStyle: TextStyle;
   columnsStyle: TextStyle;
   rowsStyle: TextStyle;
+  metricHeaderLevel: number; // which header row shows metric names (-1 = none)
   metricColors: MetricColorMap;
 }
