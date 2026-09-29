@@ -115,7 +115,7 @@ export default function PivotTable(props: PivotTableProps) {
                         ...baseHeader,
                         ...textStyleCSS(rowsStyle),
                         fontWeight: 700,
-                        color: '#64748b',
+                        color: '#000000',
                         background: '#fff',
                         borderBottom: '2px solid #e2e8f0',
                         padding: '10px 12px',
@@ -261,7 +261,7 @@ export default function PivotTable(props: PivotTableProps) {
                       key={leaf.key}
                       style={{
                         padding: '8px 12px',
-                        textAlign: 'right',
+                        textAlign: 'center',
                         fontSize: 13,
                         borderBottom: ROW_DIVIDER,
                         borderLeft: leafIsGroupStart[li] ? GROUP_DIVIDER : 'none',
@@ -279,7 +279,7 @@ export default function PivotTable(props: PivotTableProps) {
                   <td
                     style={{
                       padding: '8px 12px',
-                      textAlign: 'right',
+                      textAlign: 'center',
                       fontSize: 13,
                       fontWeight: 700,
                       background: '#f8fafc',
@@ -317,7 +317,7 @@ export default function PivotTable(props: PivotTableProps) {
                   key={leaf.key}
                   style={{
                     padding: '8px 12px',
-                    textAlign: 'right',
+                    textAlign: 'center',
                     fontSize: 13,
                     fontWeight: 700,
                     background: '#f1f5f9',
@@ -332,7 +332,7 @@ export default function PivotTable(props: PivotTableProps) {
                 <td
                   style={{
                     padding: '8px 12px',
-                    textAlign: 'right',
+                    textAlign: 'center',
                     fontSize: 13,
                     fontWeight: 700,
                     background: '#e2e8f0',
