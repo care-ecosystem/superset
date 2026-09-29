@@ -28,6 +28,7 @@ function textStyleCSS(s: TextStyle): React.CSSProperties {
     fontSize: s.fontSize,
     fontWeight: s.bold ? 700 : 400,
     fontStyle: s.italic ? 'italic' : 'normal',
+    textAlign: s.align,
   };
 }
 
@@ -114,7 +115,6 @@ export default function PivotTable(props: PivotTableProps) {
                         ...baseHeader,
                         ...textStyleCSS(rowsStyle),
                         fontWeight: 700,
-                        textAlign: 'left',
                         color: '#64748b',
                         background: '#fff',
                         borderBottom: '2px solid #e2e8f0',

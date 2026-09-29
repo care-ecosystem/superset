@@ -24,6 +24,7 @@ export interface TextStyle {
   fontSize: number;
   bold: boolean;
   italic: boolean;
+  align: 'left' | 'center' | 'right';
 }
 
 export type ApplyMetricsOn = 'columns' | 'rows';

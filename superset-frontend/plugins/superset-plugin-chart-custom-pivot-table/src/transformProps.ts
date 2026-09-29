@@ -459,19 +459,22 @@ export default function transformProps(chartProps: ChartProps): PivotTableProps 
     columnGrandTotals,
     rowHeight: Number(fd.rowHeight) || 32,
     metricsStyle: {
-      fontSize: Number(fd.metricsFontSize) || 12,
+      fontSize: Number(fd.metricsFontSize) || 11,
       bold: fd.metricsBold ?? true,
       italic: fd.metricsItalic ?? false,
+      align: fd.metricsAlign ?? 'center',
     },
     columnsStyle: {
-      fontSize: Number(fd.columnsFontSize) || 12,
+      fontSize: Number(fd.columnsFontSize) || 13,
       bold: fd.columnsBold ?? true,
       italic: fd.columnsItalic ?? false,
+      align: fd.columnsAlign ?? 'center',
     },
     rowsStyle: {
-      fontSize: Number(fd.rowsFontSize) || 12,
-      bold: fd.rowsBold ?? false,
+      fontSize: Number(fd.rowsFontSize) || 14,
+      bold: fd.rowsBold ?? true,
       italic: fd.rowsItalic ?? false,
+      align: fd.rowsAlign ?? 'left',
     },
     metricColors,
     metricHeaderLevel:

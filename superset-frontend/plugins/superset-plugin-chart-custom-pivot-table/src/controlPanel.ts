@@ -272,16 +272,61 @@ const controlPanel: ControlPanelConfig = {
           { name: 'metricsFontSize', config: { type: 'SliderControl', label: 'Metrics: Font Size', default: 11, min: 8, max: 24, step: 1, renderTrigger: true } },
           { name: 'metricsBold', config: { type: 'CheckboxControl', label: 'Metrics: Bold', default: true, renderTrigger: true } },
           { name: 'metricsItalic', config: { type: 'CheckboxControl', label: 'Metrics: Italic', default: false, renderTrigger: true } },
+          {
+            name: 'metricsAlign',
+            config: {
+              type: 'SelectControl',
+              label: 'Metrics: Text Align',
+              default: 'center',
+              choices: [
+                ['left', 'Left'],
+                ['center', 'Center'],
+                ['right', 'Right'],
+              ],
+              clearable: false,
+              renderTrigger: true,
+            },
+          },
         ],
         [
           { name: 'columnsFontSize', config: { type: 'SliderControl', label: 'Columns: Font Size', default: 13, min: 8, max: 24, step: 1, renderTrigger: true } },
           { name: 'columnsBold', config: { type: 'CheckboxControl', label: 'Columns: Bold', default: true, renderTrigger: true } },
           { name: 'columnsItalic', config: { type: 'CheckboxControl', label: 'Columns: Italic', default: false, renderTrigger: true } },
+          {
+            name: 'columnsAlign',
+            config: {
+              type: 'SelectControl',
+              label: 'Columns: Text Align',
+              default: 'center',
+              choices: [
+                ['left', 'Left'],
+                ['center', 'Center'],
+                ['right', 'Right'],
+              ],
+              clearable: false,
+              renderTrigger: true,
+            },
+          },
         ],
         [
           { name: 'rowsFontSize', config: { type: 'SliderControl', label: 'Rows: Font Size', default: 14, min: 8, max: 24, step: 1, renderTrigger: true } },
           { name: 'rowsBold', config: { type: 'CheckboxControl', label: 'Rows: Bold', default: true, renderTrigger: true } },
           { name: 'rowsItalic', config: { type: 'CheckboxControl', label: 'Rows: Italic', default: false, renderTrigger: true } },
+          {
+            name: 'rowsAlign',
+            config: {
+              type: 'SelectControl',
+              label: 'Rows: Text Align',
+              default: 'left',
+              choices: [
+                ['left', 'Left'],
+                ['center', 'Center'],
+                ['right', 'Right'],
+              ],
+              clearable: false,
+              renderTrigger: true,
+            },
+          },
         ],
         ...metricColorRows,
       ],
