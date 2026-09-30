@@ -270,7 +270,7 @@ export default function PivotTable(props: PivotTableProps) {
                         fontWeight: row.isSubtotal ? 700 : 500,
                       }}
                     >
-                      <span style={{ opacity: v === 0 ? 0.4 : 1 }}>{fmt(v)}</span>
+                      {fmt(v)}
                     </td>
                   );
                 })}
