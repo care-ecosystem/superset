@@ -17,9 +17,9 @@ import {
 
 const FONT_STACK = '"Inter", "Segoe UI", system-ui, -apple-system, sans-serif';
 const ROW_LABEL_FONT = 'Georgia, "Times New Roman", serif';
-const GROUP_ACCENTS = ['#3b82f6', '#14b8a6', '#f59e0b', '#8b5cf6', '#ef4444', '#22c55e'];
-const GROUP_DIVIDER = '2px solid #cbd5e1';
-const ROW_DIVIDER = '1px solid #eef0f3';
+const GROUP_ACCENTS = ['#3b82f6', '#f703ce', '#f50b0b', '#8b5cf6', '#400046', '#22c55e'];
+const GROUP_DIVIDER = '2px solid #636161';
+const ROW_DIVIDER = '1px solid #c7c5c5';
 
 const fmt = (v: number | null): string => (v == null ? '' : v.toLocaleString());
 
@@ -78,7 +78,7 @@ export default function PivotTable(props: PivotTableProps) {
     letterSpacing: '0.04em',
     textAlign: 'center',
     verticalAlign: 'middle',
-    borderBottom: '1px solid #e5e7eb',
+    borderBottom: '1px solid #636161',
   };
 
   return (
